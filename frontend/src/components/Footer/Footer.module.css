@@ -1,0 +1,63 @@
+.footer {
+  position: relative; z-index: 1;
+  padding: clamp(64px, 8vw, 120px) 0 0;
+}
+.inner { position: relative; z-index: 1; }
+/* Footer styles chosen in Site Design Studio */
+.f_ink { background: var(--color-ink); color: var(--color-on-ink); --color-text: var(--color-on-ink); --color-text-muted: color-mix(in srgb, var(--color-on-ink) 65%, transparent); --line: rgba(255, 255, 255, 0.14); }
+.f_light { background: var(--color-surface); color: var(--color-text); border-top: 1px solid var(--color-border); --line: var(--color-border); }
+.f_primary { background: var(--color-primary-soft); color: var(--color-text); --line: var(--color-border); }
+.f_gradient {
+  background: linear-gradient(160deg, var(--color-primary-soft), var(--color-secondary-soft) 55%, color-mix(in srgb, var(--color-accent) 22%, var(--color-surface)));
+  color: var(--color-text); --line: var(--color-border);
+}
+.f_glass { background: color-mix(in srgb, var(--color-surface-elevated) 70%, transparent); backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%); color: var(--color-text); border-top: 1px solid var(--color-border); --line: var(--color-border); }
+
+.footer :global(.t-caption) { color: var(--color-text-muted); margin-bottom: 16px; }
+.top { display: grid; gap: 40px; grid-template-columns: 1fr; }
+@media (min-width: 576px) { .top { grid-template-columns: 1fr 1fr; } .brandCol { grid-column: 1 / -1; } }
+@media (min-width: 992px) { .top { grid-template-columns: 1.6fr repeat(var(--cols, 3), minmax(0, 1fr)); } .brandCol { grid-column: auto; } }
+.wordmark { font-family: var(--font-display); font-size: 1.8rem; letter-spacing: var(--tracking-wordmark); }
+.tagline { color: var(--color-text-muted); margin-top: 4px; }
+.story { margin-top: 18px; color: var(--color-text-muted); font-size: 0.92rem; max-width: 42ch; }
+.socials { display: flex; gap: 8px; margin-top: 20px; }
+.socials a {
+  display: grid; place-items: center; width: 44px; height: 44px; border-radius: 999px; border: 1px solid var(--line);
+  transition: background-color var(--dur-2), transform var(--dur-2) var(--ease);
+}
+.socials a:hover { background: color-mix(in srgb, currentColor 10%, transparent); transform: translateY(-2px); }
+.links, .contact { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.links a, .links button, .contact a, .contact button, .contact span {
+  display: inline-flex; align-items: flex-start; gap: 10px; padding: 0; border: 0; background: transparent; cursor: pointer;
+  color: inherit; text-decoration: none; font-size: 0.92rem; text-align: left; opacity: 0.88; line-height: 1.5;
+}
+.links a:hover, .links button:hover, .contact a:hover, .contact button:hover { opacity: 1; text-decoration: underline; }
+.links svg, .contact svg { margin-top: 3px; flex-shrink: 0; }
+.legal {
+  display: flex; flex-direction: column; gap: 6px; margin-top: 56px; padding: 24px 0;
+  border-top: 1px solid var(--line); font-size: 0.78rem; color: var(--color-text-muted);
+}
+.legalMeta { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+
+/* Big wordmark */
+.giant {
+  position: relative; z-index: 1; margin: 0; padding: 0 var(--gutter) 88px; text-align: center; white-space: nowrap; overflow: hidden;
+  font-family: var(--font-display); line-height: 0.85; letter-spacing: -0.02em; user-select: none;
+  color: color-mix(in srgb, var(--color-text) 9%, transparent);
+}
+@media (min-width: 768px) { .giant { padding-bottom: 8px; } }
+.gs_s { font-size: clamp(2.6rem, 8vw, 5rem); }
+.gs_m { font-size: clamp(3.6rem, 13vw, 9rem); }
+.gs_l { font-size: clamp(5rem, 20vw, 17rem); }
+.gs_giant { font-size: clamp(5.6rem, 25vw, 26rem); letter-spacing: -0.04em; }
+.letter { display: inline-block; }
+.ga_outline { color: transparent; -webkit-text-stroke: 1.5px color-mix(in srgb, var(--color-text) 35%, transparent); transition: color 0.8s var(--ease); }
+.ga_outline:hover { color: color-mix(in srgb, var(--color-text) 14%, transparent); }
+.ga_shimmer {
+  background: linear-gradient(110deg, color-mix(in srgb, var(--color-text) 8%, transparent) 40%, color-mix(in srgb, var(--color-primary) 60%, transparent) 50%, color-mix(in srgb, var(--color-text) 8%, transparent) 60%) 0 0 / 250% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; animation: gshimmer 6s linear infinite;
+}
+@keyframes gshimmer { from { background-position: 100% 0; } to { background-position: -150% 0; } }
+.giantMarquee { text-align: left; }
+.giantTrack { display: inline-block; animation: gmarquee 40s linear infinite; }
+@keyframes gmarquee { to { transform: translateX(-50%); } }

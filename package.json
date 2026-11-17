@@ -1,0 +1,8 @@
+{
+  "name": "paalvi-root",
+  "private": true,
+  "engines": { "node": "20.x" },
+  "scripts": {
+    "heroku-postbuild": "cd frontend && npm ci --include=dev && npm run build"
+  }
+}

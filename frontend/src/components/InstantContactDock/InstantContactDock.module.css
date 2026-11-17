@@ -1,0 +1,27 @@
+.dock {
+  position: fixed; z-index: 45; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  display: flex; align-items: center; gap: 10px;
+}
+@media (min-width: 768px) { .dock { right: 24px; bottom: 24px; } }
+/* Dock position chosen in Site Design Studio (the AI orb moves to the other side). */
+:global(html[data-dock="left"]) .dock { right: auto; left: 16px; flex-direction: row-reverse; }
+@media (min-width: 768px) {
+  :global(html[data-dock="left"]) .dock { left: 24px; }
+  :global(html[data-dock="center"]) .dock { right: auto; left: 50%; translate: -50% 0; }
+}
+
+/* Secondary icons only on desktop — phones get one clear WhatsApp button. */
+.socials { display: none; align-items: center; gap: 2px; padding: 4px; border-radius: 999px; box-shadow: var(--shadow-1); }
+@media (min-width: 992px) { .socials { display: flex; } }
+.icon {
+  display: grid; place-items: center; width: 44px; height: 44px; border-radius: 999px; color: var(--color-text);
+  border: 0; background: transparent; cursor: pointer; transition: background-color var(--dur-2);
+}
+.icon:hover { background: var(--color-primary-soft); }
+
+.wa {
+  display: inline-flex; align-items: center; gap: 10px; height: 56px; padding: 0 16px; border-radius: 999px; border: 0; cursor: pointer;
+  background: var(--color-whatsapp); color: #fff; box-shadow: 0 12px 30px -10px rgba(31, 168, 85, 0.6);
+}
+.waLabel { display: none; font-weight: 600; font-size: 0.92rem; padding-right: 4px; }
+@media (min-width: 992px) { .waLabel { display: inline; } .wa { padding: 0 20px 0 16px; } }

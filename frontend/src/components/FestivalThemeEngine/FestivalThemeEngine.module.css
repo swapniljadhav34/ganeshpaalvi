@@ -1,0 +1,9 @@
+/* The ambient layer floats above the page background but below all content & never blocks taps. */
+.canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.9;
+  mix-blend-mode: normal;
+}

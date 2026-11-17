@@ -1,0 +1,12 @@
+.price { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 8px; row-gap: 2px; }
+.amount { font-weight: 700; letter-spacing: -0.01em; display: inline-flex; align-items: baseline; }
+.per { font-size: 0.7em; font-weight: 500; color: var(--color-text-muted); margin-left: 2px; }
+.mrp { color: var(--color-text-muted); font-size: 0.85em; }
+.moq {
+  font-size: 0.72rem; font-weight: 600; color: var(--color-primary-ink);
+  background: var(--color-primary-soft); padding: 1px 8px; border-radius: 999px;
+}
+.note { flex-basis: 100%; font-size: 0.72rem; color: var(--color-text-muted); }
+.sm .amount { font-size: 0.98rem; }
+.md .amount { font-size: 1.15rem; }
+.lg .amount { font-size: clamp(1.6rem, 1.2rem + 1.4vw, 2.2rem); }

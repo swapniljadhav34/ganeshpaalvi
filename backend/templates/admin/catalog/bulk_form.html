@@ -1,0 +1,23 @@
+{% extends "admin/base_site.html" %}
+{# Small confirmation form used by bulk actions like "Apply discount %". #}
+{% block content %}
+<div class="pv-card" style="max-width:560px">
+  <h2 style="font-size:18px;margin-bottom:8px">{{ title }}</h2>
+  <p class="pv-muted" style="margin-bottom:16px">This will change {{ queryset.count }} selected product(s).</p>
+  <form method="post">
+    {% csrf_token %}
+    {% for field in form %}
+      <label style="display:block;font-weight:600;margin-bottom:6px">{{ field.label }}</label>
+      {{ field }}
+      {% if field.help_text %}<p class="pv-muted pv-small" style="margin-top:6px">{{ field.help_text }}</p>{% endif %}
+      {% for e in field.errors %}<p style="color:#b91c1c">{{ e }}</p>{% endfor %}
+    {% endfor %}
+    {% for obj in queryset %}<input type="hidden" name="_selected_action" value="{{ obj.pk }}">{% endfor %}
+    <input type="hidden" name="action" value="{{ action }}">
+    <div style="display:flex;gap:8px;margin-top:20px">
+      <button type="submit" name="apply" value="1" class="pv-btn pv-btn-primary">Apply</button>
+      <a href="" class="pv-btn" onclick="history.back();return false;">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

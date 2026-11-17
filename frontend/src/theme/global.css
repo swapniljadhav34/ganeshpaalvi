@@ -1,0 +1,168 @@
+/* Global base styles. Bootstrap provides only the grid + utilities; everything visual lives here and in CSS Modules. */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; scroll-behavior: auto; position: relative; } /* lets scroll-linked animations measure correctly */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: clip; }
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--color-text);
+  background: var(--color-surface);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  transition: background-color var(--theme-transition) var(--ease), color var(--theme-transition) var(--ease);
+  overflow-x: clip;
+}
+
+img, video, canvas, svg { display: block; max-width: 100%; }
+img { height: auto; }
+button { font: inherit; color: inherit; }
+a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+:focus-visible { outline: 2px solid var(--color-primary-ink); outline-offset: 3px; border-radius: 6px; }
+::selection { background: var(--color-primary); color: var(--color-ink); }
+
+h1, h2, h3, h4 { margin: 0; font-weight: 400; }
+p { margin: 0; }
+
+/* ---- Typography helpers ---- */
+.t-display { font-family: var(--font-display); font-size: var(--fs-display); line-height: var(--lh-display); letter-spacing: -0.02em; }
+.t-h1 { font-family: var(--font-display); font-size: var(--fs-h1); line-height: 1.08; letter-spacing: -0.015em; }
+.t-h2 { font-family: var(--font-display); font-size: var(--fs-h2); line-height: 1.12; letter-spacing: -0.01em; }
+.t-h3 { font-family: var(--font-body); font-size: var(--fs-h3); line-height: 1.3; font-weight: 600; }
+.t-caption { font-size: var(--fs-caption); text-transform: uppercase; letter-spacing: var(--tracking-caption); font-weight: 600; color: var(--color-text-muted); }
+.t-muted { color: var(--color-text-muted); }
+.t-measure { max-width: var(--measure); }
+.t-deva { font-family: var(--font-deva); }
+
+/* ---- Layout ---- */
+.pv-container { width: 100%; max-width: var(--container); margin-inline: auto; padding-inline: var(--gutter); }
+.pv-section { padding-block: var(--section-pad); position: relative; }
+
+/* ---- Buttons ---- */
+.pv-btn {
+  --btn-bg: var(--color-text);
+  --btn-fg: var(--color-surface);
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  position: relative; overflow: hidden; isolation: isolate;
+  min-height: 48px; padding: 12px 24px;
+  border-radius: var(--btn-radius, var(--radius-pill)); border: 1px solid transparent;
+  background: var(--btn-bg); color: var(--btn-fg);
+  font-weight: 600; font-size: 0.95rem; letter-spacing: 0.01em; text-decoration: none;
+  cursor: pointer; white-space: nowrap;
+  transition: transform var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease), background-color var(--dur-2), color var(--dur-2);
+  -webkit-tap-highlight-color: transparent;
+}
+.pv-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-2); }
+.pv-btn:active { transform: translateY(0) scale(0.98); }
+/* Button hover styles chosen in Site Design Studio */
+html[data-btn-hover="none"] .pv-btn:hover { transform: none; box-shadow: none; }
+html[data-btn-hover="glow"] .pv-btn:hover { transform: none; box-shadow: 0 0 0 4px var(--color-primary-soft), 0 0 28px color-mix(in srgb, var(--color-primary) 60%, transparent); }
+html[data-btn-hover="fill"] .pv-btn::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; background: var(--color-primary);
+  transform: scaleX(0); transform-origin: 0 50%; transition: transform var(--dur-3) var(--ease);
+}
+html[data-btn-hover="fill"] .pv-btn:hover { transform: none; color: var(--color-ink); }
+html[data-btn-hover="fill"] .pv-btn:hover::before { transform: scaleX(1); }
+html[data-btn-hover="shine"] .pv-btn::after {
+  content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.5) 50%, transparent 65%);
+  transform: translateX(-120%); transition: transform 0.8s var(--ease);
+}
+html[data-btn-hover="shine"] .pv-btn:hover::after { transform: translateX(120%); }
+html[data-btn-hover="magnetic"] .pv-btn:hover { transform: scale(1.05); }
+.pv-btn[disabled] { opacity: 0.5; pointer-events: none; }
+.pv-btn--primary { --btn-bg: var(--color-primary); --btn-fg: var(--color-ink); }
+.pv-btn--ghost { --btn-bg: transparent; --btn-fg: var(--color-text); border-color: var(--color-border-strong); }
+.pv-btn--glass { --btn-bg: var(--glass-bg); --btn-fg: var(--color-text); border-color: var(--glass-border); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur); }
+.pv-btn--whatsapp { --btn-bg: var(--color-whatsapp); --btn-fg: #fff; }
+.pv-btn--sm { min-height: 38px; padding: 8px 16px; font-size: 0.85rem; }
+.pv-btn--block { width: 100%; }
+
+.pv-icon-btn {
+  display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: var(--btn-radius, var(--radius-pill));
+  border: 1px solid var(--color-border); background: var(--color-surface-elevated); cursor: pointer;
+  transition: background-color var(--dur-2), transform var(--dur-2) var(--ease);
+}
+.pv-icon-btn:hover { background: var(--color-primary-soft); }
+
+/* ---- Chips & badges ---- */
+.pv-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: var(--radius-pill);
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap;
+  background: var(--color-surface-elevated); color: var(--color-text); border: 1px solid var(--color-border);
+}
+.pv-chip--primary { background: var(--color-primary-soft); border-color: transparent; color: var(--color-primary-ink); }
+.pv-chip--accent { background: color-mix(in srgb, var(--color-accent) 22%, var(--color-surface-elevated)); border-color: transparent; }
+.pv-chip--ink { background: var(--color-text); color: var(--color-surface); border-color: transparent; }
+
+/* ---- Frosted glass ---- */
+.pv-glass {
+  background: var(--glass-bg) var(--noise);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .pv-glass { background: var(--color-surface-elevated); }
+}
+html.pv-lowend .pv-glass { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--color-surface-elevated); }
+
+/* ---- Form fields ---- */
+.pv-field { display: flex; flex-direction: column; gap: 6px; }
+.pv-field label { font-size: 0.8rem; font-weight: 600; color: var(--color-text-muted); }
+.pv-input {
+  width: 100%; min-height: 48px; padding: 12px 16px; border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-strong); background: var(--color-surface-elevated); color: var(--color-text);
+  font: inherit; transition: border-color var(--dur-2), box-shadow var(--dur-2);
+}
+.pv-input:focus { outline: none; border-color: var(--color-primary-ink); box-shadow: 0 0 0 4px var(--color-primary-soft); }
+textarea.pv-input { min-height: 96px; resize: vertical; }
+
+/* ---- Shimmer skeleton ---- */
+.pv-skeleton {
+  background: linear-gradient(100deg, var(--color-primary-soft) 30%, color-mix(in srgb, var(--color-surface-elevated) 70%, transparent) 50%, var(--color-primary-soft) 70%);
+  background-size: 300% 100%;
+  animation: pv-shimmer 1.4s var(--ease) infinite;
+  border-radius: var(--radius-md);
+}
+@keyframes pv-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+/* ---- Loading screen ---- */
+.pv-splash { position: fixed; inset: 0; z-index: 3000; display: grid; place-items: center; background: var(--color-surface); }
+.pv-splash-word { font-family: var(--font-display); font-size: 2rem; letter-spacing: 0.2em; display: flex; }
+
+/* ---- Screen-reader only ---- */
+.pv-sr { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* ---- react-bootstrap Modal / Offcanvas (we ship our own minimal CSS instead of Bootstrap's) ---- */
+.modal { position: fixed; inset: 0; z-index: 1055; overflow: hidden; outline: 0; display: none; }
+.modal.show { display: block; }
+.modal-dialog { position: relative; width: auto; pointer-events: none; height: 100%; margin: 0; }
+.modal-content { pointer-events: auto; position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; outline: 0; }
+.modal-backdrop, .offcanvas-backdrop {
+  position: fixed; inset: 0; z-index: 1050; background: color-mix(in srgb, var(--color-ink) 42%, transparent);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  transition: opacity var(--dur-3) var(--ease);
+}
+.modal-backdrop.fade, .offcanvas-backdrop.fade { opacity: 0; }
+.modal-backdrop.show, .offcanvas-backdrop.show { opacity: 1; }
+.offcanvas {
+  position: fixed; z-index: 1056; display: flex; flex-direction: column; max-width: 100%; visibility: hidden;
+  background: var(--color-surface-elevated); color: var(--color-text); outline: 0;
+  transition: transform var(--dur-3) var(--ease), visibility var(--dur-3);
+}
+.offcanvas.showing, .offcanvas.show:not(.hiding) { transform: none !important; }
+.offcanvas.showing, .offcanvas.hiding, .offcanvas.show { visibility: visible; }
+.offcanvas-bottom { left: 0; right: 0; bottom: 0; max-height: 88vh; transform: translateY(100%); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+.offcanvas-end { top: 0; right: 0; bottom: 0; width: min(440px, 100vw); transform: translateX(100%); }
+.offcanvas-start { top: 0; left: 0; bottom: 0; width: min(400px, 100vw); transform: translateX(-100%); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}

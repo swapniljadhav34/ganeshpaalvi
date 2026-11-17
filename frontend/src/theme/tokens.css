@@ -1,0 +1,92 @@
+/*
+  Paalvi design tokens.
+  Colours are overwritten live by FestivalThemeEngine from the admin's active theme;
+  the values here are the "Paalvi Fresh" defaults used before the API answers.
+*/
+:root {
+  /* ---- Colour (theme-driven) ---- */
+  --color-primary: #8fc9b9;
+  --color-secondary: #e6cfc3;
+  --color-accent: #bfa77a;
+  --color-surface: #f8f7f4;
+  --color-surface-elevated: #ffffff;
+  --color-text: #14181f;
+  --color-text-muted: #5b6470;
+
+  /* ---- Derived colour (auto-calculated from the theme) ---- */
+  --color-border: color-mix(in srgb, var(--color-text) 10%, transparent);
+  --color-border-strong: color-mix(in srgb, var(--color-text) 18%, transparent);
+  --color-primary-soft: color-mix(in srgb, var(--color-primary) 18%, var(--color-surface));
+  --color-secondary-soft: color-mix(in srgb, var(--color-secondary) 35%, var(--color-surface));
+  --color-primary-ink: color-mix(in srgb, var(--color-primary) 45%, var(--color-text));
+  --color-whatsapp: #1fa855;
+  --color-danger: #c2410c;
+  --color-ink: #14181f;
+  --color-on-ink: #f6f4ef;
+
+  /* ---- Frosted bathroom glass ---- */
+  --glass-bg: color-mix(in srgb, var(--color-surface-elevated) 78%, transparent);
+  --glass-border: color-mix(in srgb, #ffffff 30%, transparent);
+  --glass-blur: blur(20px) saturate(160%);
+  --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.02'/%3E%3C/svg%3E");
+
+  /* ---- Typography ---- */
+  --font-display: 'Instrument Serif', 'Fraunces', 'Tiro Devanagari Hindi', Georgia, 'Times New Roman', serif;
+  --font-body: 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
+  --font-deva: 'Tiro Devanagari Hindi', 'Noto Serif Devanagari', serif;
+
+  --fs-display: clamp(2.5rem, 1.2rem + 6.4vw, 6.5rem);   /* 40 → 104px */
+  --fs-h1: clamp(2rem, 1.2rem + 3.6vw, 4rem);             /* 32 → 64px  */
+  --fs-h2: clamp(1.5rem, 1.05rem + 2vw, 2.625rem);        /* 24 → 42px  */
+  --fs-h3: clamp(1.15rem, 1rem + 0.6vw, 1.5rem);
+  --fs-body: clamp(0.9375rem, 0.9rem + 0.18vw, 1.0625rem);/* 15 → 17px  */
+  --fs-small: 0.875rem;
+  --fs-caption: clamp(0.75rem, 0.73rem + 0.1vw, 0.8125rem); /* 12 → 13px */
+  --lh-display: 1.05;
+  --lh-body: 1.6;
+  --tracking-caption: 0.12em;
+  --tracking-wordmark: 0.2em;
+  --measure: 65ch;
+
+  /* ---- Spacing (8px grid) ---- */
+  --space-1: 4px;  --space-2: 8px;   --space-3: 12px;  --space-4: 16px;
+  --space-5: 24px; --space-6: 32px;  --space-7: 48px;  --space-8: 64px;
+  --space-9: 96px; --space-10: 128px; --space-11: 160px; --space-12: 192px;
+  --section-pad: clamp(64px, 6vw + 40px, 160px);
+  --gutter: clamp(16px, 4vw, 48px);
+  --container: 1320px;
+
+  /* ---- Radius: soft, pebble-like ---- */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 28px;
+  --radius-pill: 999px;
+
+  /* ---- Shadows: diffused, tinted with primary, never harsh black ---- */
+  --shadow-1: 0 1px 2px color-mix(in srgb, var(--color-primary-ink) 8%, transparent),
+              0 4px 16px -6px color-mix(in srgb, var(--color-primary-ink) 14%, transparent);
+  --shadow-2: 0 10px 30px -12px color-mix(in srgb, var(--color-primary-ink) 26%, transparent),
+              0 2px 6px color-mix(in srgb, var(--color-primary-ink) 6%, transparent);
+  --shadow-3: 0 30px 80px -24px color-mix(in srgb, var(--color-primary-ink) 38%, transparent),
+              0 8px 24px -8px color-mix(in srgb, var(--color-primary-ink) 14%, transparent);
+
+  /* ---- Motion ---- */
+  --dur-1: 150ms; --dur-2: 250ms; --dur-3: 450ms; --dur-4: 800ms;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --theme-transition: 600ms;
+}
+
+/* Browsers without color-mix(): sensible solid fallbacks. */
+@supports not (color: color-mix(in srgb, red 50%, blue)) {
+  :root {
+    --color-border: rgba(20, 24, 31, 0.1);
+    --color-border-strong: rgba(20, 24, 31, 0.18);
+    --color-primary-soft: #e6f2ee;
+    --color-secondary-soft: #f2e8e2;
+    --color-primary-ink: #3a7769;
+    --glass-bg: rgba(255, 255, 255, 0.82);
+    --shadow-1: 0 4px 16px -6px rgba(58, 119, 105, 0.18);
+    --shadow-2: 0 10px 30px -12px rgba(58, 119, 105, 0.3);
+    --shadow-3: 0 30px 80px -24px rgba(58, 119, 105, 0.4);
+  }
+}

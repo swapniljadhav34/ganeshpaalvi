@@ -1,0 +1,24 @@
+{{ registry|json_script:"pv-registry" }}
+<aside id="pv-preview" class="pv-preview" data-origin="{{ site_origin }}" data-kind="{{ kind }}" aria-label="Live preview">
+  <div class="pv-preview-bar">
+    <strong>Live preview</strong>
+    <span class="pv-preview-hint">updates as you type</span>
+    <div class="pv-preview-tools">
+      <button type="button" data-device="phone" title="Phone">Phone</button>
+      <button type="button" data-device="tablet" title="Tablet">Tablet</button>
+      <button type="button" data-device="desktop" title="Computer">Computer</button>
+      <button type="button" data-action="replay" title="Play the animations again">↻ Replay</button>
+      <a href="{{ src }}" target="_blank" rel="noopener" title="Open the preview in a new tab">Open ↗</a>
+      <button type="button" data-action="toggle" class="pv-preview-toggle" title="Hide / show preview">Hide</button>
+    </div>
+  </div>
+  <div class="pv-preview-stage">
+    <div class="pv-preview-scale">
+      <iframe src="{{ src }}" title="Website preview" loading="lazy"></iframe>
+    </div>
+  </div>
+  <p class="pv-preview-note">Shapes, animations, words and colours update instantly. After adding new photos or videos, click
+    <b>Save and continue editing</b> to see them here.</p>
+</aside>
+<button type="button" id="pv-preview-open" class="pv-preview-open" hidden>▶ Live preview</button>
+<script src="{{ script }}" defer></script>

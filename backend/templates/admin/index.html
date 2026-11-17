@@ -1,0 +1,95 @@
+{% extends 'admin/base.html' %}
+{% load i18n %}
+
+{% block title %}Dashboard | {{ site_title }}{% endblock %}
+
+{% block branding %}
+    {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block content %}
+{# Paalvi owner dashboard — numbers come from storefront/dashboard.py #}
+<div class="pv-dash">
+  <div class="pv-hello">
+    <div>
+      <p class="pv-eyebrow">Paalvi Studio</p>
+      <h1>Good to see you{% if request.user.first_name %}, {{ request.user.first_name }}{% endif %}.</h1>
+      <p class="pv-muted">Here's how your showroom is doing today.</p>
+    </div>
+    <div class="pv-quick">
+      <a class="pv-btn pv-btn-primary" href="{% url 'admin:catalog_product_add' %}">＋ Add product</a>
+      <a class="pv-btn" href="{% url 'admin:storefront_activetheme_changelist' %}">🎨 Change theme</a>
+      <a class="pv-btn" href="{% url 'admin:leads_leadinquiry_changelist' %}?status__exact=new">📥 View new leads</a>
+      <a class="pv-btn" href="{{ dash.site_url }}" target="_blank" rel="noopener">View site ↗</a>
+    </div>
+  </div>
+
+  <div class="pv-grid pv-kpis">
+    {% for k in dash.kpis %}
+      <a class="pv-card pv-kpi" href="{{ k.link }}">
+        <span class="pv-kpi-label">{{ k.label }}</span>
+        <span class="pv-kpi-value">{{ k.value }}</span>
+        <span class="pv-muted pv-small">{{ k.hint }}</span>
+      </a>
+    {% endfor %}
+  </div>
+
+  <div class="pv-grid pv-two">
+    <div class="pv-card">
+      <h2>Most-enquired products <span class="pv-muted pv-small">· last 30 days</span></h2>
+      {% if dash.top_products %}
+        <ol class="pv-list">
+          {% for p in dash.top_products %}
+            <li><a href="{% url 'admin:catalog_product_change' p.product__id %}">{{ p.product__title }}</a><span class="pv-pill">{{ p.n }}</span></li>
+          {% endfor %}
+        </ol>
+      {% else %}
+        <p class="pv-muted">No product enquiries yet. They'll appear here as soon as visitors tap WhatsApp.</p>
+      {% endif %}
+    </div>
+
+    <div class="pv-card">
+      <h2>Who is enquiring <span class="pv-muted pv-small">· last 30 days</span></h2>
+      <div class="pv-split">
+        <div class="pv-split-bar"><span style="width: {{ dash.split.b2b_pct }}%"></span></div>
+        <div class="pv-split-legend">
+          <span><b>{{ dash.split.b2b }}</b> business (B2B)</span>
+          <span><b>{{ dash.split.retail }}</b> shoppers</span>
+        </div>
+      </div>
+      <ul class="pv-list pv-tight">
+        {% for row in dash.by_buyer %}<li>{{ row.label }}<span class="pv-pill">{{ row.n }}</span></li>{% endfor %}
+      </ul>
+    </div>
+
+    <div class="pv-card">
+      <h2>Low on stock</h2>
+      {% if dash.low_stock %}
+        <ul class="pv-list">
+          {% for p in dash.low_stock %}
+            <li><a href="{% url 'admin:catalog_product_change' p.id %}">{{ p.title }}</a><span class="pv-pill pv-warn">{{ p.get_stock_status_display }}</span></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="pv-muted">Everything is in stock. 🎉</p>
+      {% endif %}
+    </div>
+
+    <div class="pv-card">
+      <h2>Live theme</h2>
+      {% if dash.theme %}
+        <div class="pv-theme" style="background: {{ dash.theme.surface }}; color: {{ dash.theme.text }}">
+          <div class="pv-dots">
+            {% for c in dash.theme_colors %}<span style="background: {{ c }}"></span>{% endfor %}
+          </div>
+          <strong>{{ dash.theme.name }}</strong>
+          <span class="pv-small" style="opacity: .7">{{ dash.theme_reason }}</span>
+        </div>
+      {% else %}
+        <p class="pv-muted">No themes yet. Run <code>python manage.py seed_themes</code>.</p>
+      {% endif %}
+      <p class="pv-muted pv-small" style="margin-top: 12px">Next festival: {{ dash.next_festival|default:"none scheduled" }}</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
