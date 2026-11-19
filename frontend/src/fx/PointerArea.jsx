@@ -1,10 +1,11 @@
 // Makes a whole block react to the mouse (or finger): parallax depth, 3D tilt,
 // a soft following spotlight, or ripples where you tap. Children can read the
 // pointer position with usePointer() to move at their own depth.
-import { motion, useMotionTemplate, useMotionValue, useReducedMotion, useSpring, useTransform } from 'framer-motion';
+import { motion, useMotionTemplate, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { createContext, useContext, useRef, useState } from 'react';
 import { hasFinePointer } from '../utils/device';
 import './fx.css';
+import { useCalm } from '../hooks/useCalm';
 
 const PointerCtx = createContext({ px: null, py: null });
 
@@ -24,7 +25,7 @@ export function useDepth(depth = 20) {
 
 export default function PointerArea({ effect = 'none', className = '', style, children, as = 'div', alwaysTrack = false, ...rest }) {
   const ref = useRef(null);
-  const reduce = useReducedMotion();
+  const reduce = useCalm();
   const rawX = useMotionValue(0);
   const rawY = useMotionValue(0);
   const px = useSpring(rawX, { stiffness: 80, damping: 18 });

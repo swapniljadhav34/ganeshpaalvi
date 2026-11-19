@@ -197,7 +197,7 @@ DIVIDERS = {
 SPEEDS = {"slow": "Slow & calm", "normal": "Normal", "fast": "Quick & lively"}
 
 # ---------------------------------------------------------------------------
-# 24 hero layouts. "media" = how many photos/videos the layout looks best with.
+# 25 hero layouts (24 + the 3D product showcase). "media" = how many photos/videos the layout looks best with.
 # ---------------------------------------------------------------------------
 HERO_LAYOUTS = {
     "cinematic": ("Cinematic full screen", "Full-screen video or photo, words bottom-left, settles as you scroll.", "1 video or photo"),
@@ -224,6 +224,8 @@ HERO_LAYOUTS = {
     "coverflow": ("Coverflow carousel", "A 3D carousel of photos under the headline.", "4–8"),
     "kinetic_type": ("Kinetic typography", "Huge sliding words with a small media capsule.", "1"),
     "minimal_type": ("Minimal type + gradient", "Elegant words over a slow, living colour gradient. No media needed.", "0"),
+    "showcase_3d": ("3D product showcase", "Rotatable 3D models of the products you tick 'Show in the 3D hero' (Products → 3D model).",
+                    "2–6 products with a .glb model"),
 }
 
 

@@ -17,6 +17,8 @@ export default defineConfig({
   build: {
     target: 'es2019',
     cssCodeSplit: true,
+    // The 3D viewer (three.js) is ~1 MB but lives in its own lazy chunk, downloaded only when a model is shown.
+    chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
         // Split big libraries into their own cached files.

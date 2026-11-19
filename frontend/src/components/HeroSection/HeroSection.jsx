@@ -1,7 +1,7 @@
 // Homepage hero: one or more admin "Hero slides", each in any of 24 layouts with its own
 // shapes, galleries, text animation, mouse effects, decor and divider. Slides rotate.
 // HeroView is also used by the "Animated Hero Banner" section and the admin live preview.
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowDown } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useSite } from '../../context/SiteContext';
@@ -10,12 +10,14 @@ import Divider from '../../fx/Divider';
 import { FxProvider, resolveFx } from '../../fx/FxContext';
 import PointerArea from '../../fx/PointerArea';
 import { useSmoothScroll } from '../../hooks/useSmoothScroll';
+import { MediaPriorityContext } from '../../fx/MediaItem';
 import { FULL_BLEED, HERO_LAYOUTS } from './layouts';
 import s from './Hero.module.css';
+import { useCalm } from '../../hooks/useCalm';
 
 export function HeroView({ slide, inSection = false, controls = null, id }) {
   const { design } = useSite();
-  const reduce = useReducedMotion();
+  const reduce = useCalm();
   const fx = useMemo(() => resolveFx(slide, design), [slide, design]);
   const layout = HERO_LAYOUTS[slide.layout] ? slide.layout : 'cinematic';
   const Layout = HERO_LAYOUTS[layout];
@@ -31,7 +33,9 @@ export function HeroView({ slide, inSection = false, controls = null, id }) {
       <PointerArea as="section" id={id} effect={fx.pointer} alwaysTrack className={cls}
         style={{ '--veil-a': `${slide.overlay_strength ?? 40}%` }} aria-label={slide.headline || 'Welcome'}>
         <Decor kind={fx.decor} />
-        <Layout slide={slide} fx={fx} media={media} product={product} reduce={reduce} inSection={inSection} />
+        <MediaPriorityContext.Provider value={!inSection}>
+          <Layout slide={slide} fx={fx} media={media} product={product} reduce={reduce} inSection={inSection} />
+        </MediaPriorityContext.Provider>
         {controls}
         <Divider kind={fx.divider} position="inside" />
       </PointerArea>
@@ -43,7 +47,7 @@ export default function HeroSection() {
   const { data } = useSite();
   const slides = data?.hero || [];
   const [index, setIndex] = useState(0);
-  const reduce = useReducedMotion();
+  const reduce = useCalm();
   const { scrollTo } = useSmoothScroll();
 
   useEffect(() => {

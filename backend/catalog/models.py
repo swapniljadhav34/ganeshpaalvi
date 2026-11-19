@@ -14,6 +14,7 @@ from django.utils.text import slugify
 from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFit
 
+from storefront import validators as V
 from storefront.utils import compress_image_field
 
 hex_validator = RegexValidator(r"^#[0-9A-Fa-f]{6}$", "Please pick a colour (format like #8FC9B9).")
@@ -37,7 +38,7 @@ class Category(models.Model):
                                help_text="Optional. Put 'Bamboo' under 'Toothbrushes' to make a sub-category.")
     description = models.TextField(blank=True, help_text="One or two lines shown on the category tile.")
     icon = models.CharField(max_length=40, blank=True, help_text="Optional icon name (e.g. 'sparkles', 'leaf', 'droplet').")
-    image = models.ImageField(upload_to="categories/", blank=True, help_text="Tile picture. Square works best.")
+    image = models.ImageField(validators=V.IMAGE, upload_to="categories/", blank=True, help_text="Tile picture. Square works best.")
     order = models.PositiveIntegerField(default=0, db_index=True)
     is_active = models.BooleanField(default=True, db_index=True, help_text="Untick to hide this category and its products' tile.")
 
@@ -69,7 +70,7 @@ class Category(models.Model):
 class Ingredient(models.Model):
     name = models.CharField(max_length=80, unique=True, help_text="e.g. 'Neem', 'Activated Charcoal'.")
     icon = models.CharField(max_length=40, blank=True, help_text="Optional icon name (e.g. 'leaf', 'sparkles', 'droplet').")
-    image = models.ImageField(upload_to="ingredients/", blank=True, help_text="Close-up picture for the Ingredient Spotlight.")
+    image = models.ImageField(validators=V.IMAGE, upload_to="ingredients/", blank=True, help_text="Close-up picture for the Ingredient Spotlight.")
     short_benefit = models.CharField(max_length=120, blank=True, help_text="One short benefit, e.g. 'Naturally freshens breath'.")
     is_spotlight = models.BooleanField(default=False, help_text="Tick to feature it in the homepage Ingredient Spotlight.")
 
@@ -149,7 +150,7 @@ class Product(models.Model):
     badges = models.ManyToManyField(Badge, blank=True, related_name="products", help_text="Free-from, vegan, dentist-recommended…")
     suitable_for = models.JSONField(default=list, blank=True,
                                     help_text="Who it's for. Any of: adults, kids, sensitive, braces.")
-    demo_video = models.FileField(upload_to="products/videos/", blank=True, help_text="Optional short MP4 showing the product (under 8 MB).")
+    demo_video = models.FileField(validators=V.VIDEO, upload_to="products/videos/", blank=True, help_text="Optional short MP4 showing the product (under 8 MB).")
 
     # --- Prices (₹, incl. all taxes) ---
     mrp = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="MRP ₹",
@@ -167,8 +168,9 @@ class Product(models.Model):
     unit = models.CharField(max_length=4, choices=Unit.choices, default=Unit.PCS)
     shelf_life = models.CharField(max_length=80, blank=True, help_text="e.g. 'Best before 24 months from manufacture'.")
     country_of_origin = models.CharField(max_length=60, default="India")
-    stock_status = models.CharField(max_length=16, choices=StockStatus.choices, default=StockStatus.IN_STOCK, db_index=True)
-    tags = models.CharField(max_length=300, blank=True, help_text="Extra search words, comma separated, e.g. 'charcoal, travel, eco'.")
+    stock_status = models.CharField(max_length=16, choices=StockStatus.choices, default=StockStatus.IN_STOCK, db_index=True,
+                                    help_text="Updated automatically from the Inventory Manager once stock is tracked.")
+    tags =models.CharField(max_length=300, blank=True, help_text="Extra search words, comma separated, e.g. 'charcoal, travel, eco'.")
 
     # --- Visibility ---
     is_active = models.BooleanField(default=True, db_index=True, verbose_name="Show on website")
@@ -177,8 +179,18 @@ class Product(models.Model):
     is_bestseller = models.BooleanField(default=False, db_index=True, verbose_name="Bestseller")
     order = models.PositiveIntegerField(default=0, db_index=True, help_text="Lower numbers show first in 'Featured' lists.")
 
+    # --- 3D model ---
+    model_3d = models.FileField(upload_to="products/3d/", blank=True, validators=V.MODEL_3D, verbose_name="3D model (.glb)",
+                                help_text="Optional .glb 3D model (binary glTF). Keep it under 5 MB for fast phones; 20 MB maximum.")
+    model_poster = models.ImageField(upload_to="products/3d/", blank=True, validators=V.IMAGE, verbose_name="3D poster image",
+                                     help_text="Picture shown instantly while the 3D model loads (same angle as the model). "
+                                               "Empty = the first product photo.")
+    is_hero_3d_featured = models.BooleanField(default=False, db_index=True, verbose_name="Show in the 3D hero",
+                                              help_text="Feature this product's 3D model in the homepage '3D showcase' hero.")
+    hero_3d_order = models.PositiveIntegerField(default=0, verbose_name="3D hero order", help_text="Lower numbers show first.")
+
     # --- SEO ---
-    seo_title = models.CharField(max_length=70, blank=True, help_text="Optional. Title for Google (under 60 characters).")
+    seo_title =models.CharField(max_length=70, blank=True, help_text="Optional. Title for Google (under 60 characters).")
     seo_description = models.CharField(max_length=170, blank=True, help_text="Optional. Description for Google (under 160 characters).")
 
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -201,6 +213,7 @@ class Product(models.Model):
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = unique_slug(self, self.title)
+        compress_image_field(self.model_poster, max_side=1600)
         if self.mrp and self.retail_price and self.mrp > 0 and self.retail_price < self.mrp:
             pct = (Decimal(1) - self.retail_price / self.mrp) * 100
             self.discount_percent = int(pct.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
@@ -228,7 +241,7 @@ class Product(models.Model):
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="images")
-    image = models.ImageField(upload_to="products/", help_text="Large phone photos are fine — we resize & convert to WebP automatically.")
+    image = models.ImageField(validators=V.IMAGE, upload_to="products/", help_text="Large phone photos are fine — we resize & convert to WebP automatically.")
     alt_text = models.CharField(max_length=160, blank=True, help_text="Describe the picture for blind visitors & Google.")
     order = models.PositiveIntegerField(default=0, db_index=True)
 
@@ -259,7 +272,7 @@ class ProductVariant(models.Model):
     value = models.CharField(max_length=60, db_index=True, help_text="e.g. 'Soft', 'Mint', '100 g', 'Ocean Blue'.")
     sku = models.CharField(max_length=60, blank=True, verbose_name="SKU", help_text="Optional code for this variant.")
     swatch_hex = models.CharField(max_length=7, blank=True, validators=[hex_validator], help_text="Optional colour dot for colour variants.")
-    image = models.ImageField(upload_to="products/variants/", blank=True, help_text="Optional picture shown when this variant is selected.")
+    image = models.ImageField(validators=V.IMAGE, upload_to="products/variants/", blank=True, help_text="Optional picture shown when this variant is selected.")
     price_override = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                          help_text="Only if this variant costs differently (retail, ₹).")
     stock_status = models.CharField(max_length=16, choices=Product.StockStatus.choices, default=Product.StockStatus.IN_STOCK)

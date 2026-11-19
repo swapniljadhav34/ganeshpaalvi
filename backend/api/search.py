@@ -7,6 +7,9 @@ from django.db.models import Exists, OuterRef, Q
 
 from catalog.models import Category, Product, ProductVariant, is_postgres
 
+# Each list value adds a join/subquery, so never accept more than a handful from visitors.
+MAX_LIST = 5
+
 SORTS = {
     "newest": ["-created_at"],
     "price_asc": ["retail_price", "-created_at"],
@@ -43,12 +46,12 @@ def filter_products(qs, *, q=None, category=None, badge=None, suitable_for=None,
     if category:
         cat = Category.objects.filter(slug=category, is_active=True).first()
         qs = qs.filter(category_id__in=cat.descendant_ids()) if cat else qs.none()
-    for slug in [b for b in (badge or "").split(",") if b]:
+    for slug in [b for b in (badge or "").split(",") if b][:MAX_LIST]:
         qs = qs.filter(badges__slug=slug.strip())
-    for who in [s for s in (suitable_for or "").split(",") if s]:
+    for who in [s for s in (suitable_for or "").split(",") if s][:MAX_LIST]:
         qs = qs.filter(suitable_for__icontains=f'"{who.strip()}"')
     # variant=bristle:soft,flavour:mint  (also accepts bristle=soft)
-    for pair in [v for v in (variant or "").split(",") if v]:
+    for pair in [v for v in (variant or "").split(",") if v][:MAX_LIST]:
         sep = ":" if ":" in pair else "="
         if sep not in pair:
             continue

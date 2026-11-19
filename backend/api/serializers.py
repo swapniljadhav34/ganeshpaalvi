@@ -23,7 +23,11 @@ from storefront.models import (
 
 
 def media_url(request, file_field):
-    """Absolute URL for an uploaded file (works for local disk and S3/R2)."""
+    """Absolute URL for an uploaded file (local disk or S3/R2).
+
+    Built from settings.MEDIA_BASE_URL — never from the request's Host header — because these URLs
+    are cached and shared with every visitor (a request via 127.0.0.1 must not poison them).
+    """
     if not file_field:
         return None
     try:
@@ -32,7 +36,7 @@ def media_url(request, file_field):
         return None
     if url.startswith("http"):
         return url
-    return request.build_absolute_uri(url) if request else url
+    return f"{settings.MEDIA_BASE_URL}{url}"
 
 
 def spec_url(request, spec):
@@ -106,6 +110,8 @@ def product_detail(request, p: Product):
         "badges": [{"name": b.name, "slug": b.slug, "icon": b.icon, "description": b.description} for b in p.badges.all()],
         "suitable_for": p.suitable_for or [],
         "demo_video": media_url(request, p.demo_video),
+        "model_3d": media_url(request, p.model_3d),
+        "model_poster": media_url(request, p.model_poster),
         "shelf_life": p.shelf_life,
         "country_of_origin": p.country_of_origin,
         "variants": [
@@ -161,6 +167,7 @@ def brand_payload(request, b: BrandSettings):
             "messages": [m for m in [b.announcement_text, *b.announcement_more.splitlines()] if m.strip()],
         },
         "footer_story": b.footer_story,
+        "privacy_policy": b.privacy_policy,
         "seo": {"title": b.default_seo_title, "description": b.default_seo_description, "image": media_url(request, b.og_share_image)},
         "site_url": settings.SITE_URL,
     }
@@ -173,21 +180,30 @@ def theme_payload():
     return {"tokens": tokens, "source": why, "ambient_enabled": at.enable_ambient_effects}
 
 
-def media_list(request, main_image=None, main_video=None, main_video_mobile=None, items=()):
+def srcset(request, small, large):
+    """'<800w url> 800w, <1600w url> 1600w' so phones download a phone-sized picture."""
+    parts = [(spec_url(request, small), 800), (spec_url(request, large), 1600)]
+    out = ", ".join(f"{u} {w}w" for u, w in parts if u)
+    return out or None
+
+
+def media_list(request, main_image=None, main_video=None, main_video_mobile=None, items=(), *, main_alt="", main_specs=None):
     """Main picture/video first, then the extra gallery items — one simple list for the website."""
     out = []
     poster = media_url(request, main_image)
+    main_srcset = srcset(request, *main_specs) if (main_specs and main_image) else None
     video = media_url(request, main_video)
     if video or main_video_mobile:
         out.append({"type": "video", "src": video or media_url(request, main_video_mobile),
-                    "src_mobile": media_url(request, main_video_mobile), "poster": poster, "caption": "", "link": "", "alt": ""})
+                    "src_mobile": media_url(request, main_video_mobile), "poster": poster, "caption": "", "link": "", "alt": main_alt})
     elif poster:
-        out.append({"type": "image", "src": poster, "caption": "", "link": "", "alt": ""})
+        out.append({"type": "image", "src": poster, "srcset": main_srcset, "caption": "", "link": "", "alt": main_alt})
     for m in items:
         img, vid = media_url(request, m.image), media_url(request, m.video)
         if not (img or vid):
             continue
         out.append({"type": "video" if vid else "image", "src": vid or img, "poster": img if vid else None,
+                    "srcset": None if vid or not m.image else srcset(request, m.img_800, m.img_1600),
                     "caption": m.caption, "link": m.link, "alt": m.alt_text or m.caption})
     return out
 
@@ -199,7 +215,8 @@ def hero_slide_payload(request, h, fallback_product=None):
         "headline_size": h.headline_size, "text_tone": h.text_tone, "overlay_strength": h.overlay_strength, "height": h.height,
         "video_desktop": media_url(request, h.video_desktop), "video_mobile": media_url(request, h.video_mobile),
         "poster": media_url(request, h.poster_image),
-        "media": media_list(request, h.poster_image, h.video_desktop, h.video_mobile, h.media.all()),
+        "media": media_list(request, h.poster_image, h.video_desktop, h.video_mobile, h.media.all(), main_alt=h.media_alt,
+                            main_specs=(h.poster_800, h.poster_1600)),
         "cta_text": h.cta_text, "cta_link": h.cta_link,
         "secondary_cta_text": h.secondary_cta_text, "secondary_cta_link": h.secondary_cta_link,
         "show_product": h.show_product, "product": product_card(request, product) if (product and h.show_product) else None,
@@ -251,7 +268,8 @@ def sections_payload(request, sections=None):
         data = {
             "id": s.pk, "type": s.section_type, "eyebrow": s.eyebrow, "title": s.title, "body": s.body,
             "image": media_url(request, s.image), "video": media_url(request, s.video),
-            "media": media_list(request, s.image, s.video, None, s.media.all()),
+            "media": media_list(request, s.image, s.video, None, s.media.all(), main_alt=s.media_alt,
+                                main_specs=(s.img_800, s.img_1600)),
             "cta_text": s.cta_text, "cta_link": s.cta_link, "background": s.background_style,
             "hero_layout": s.hero_layout, "media_position": s.media_position,
             "items": s.items or [],
@@ -292,6 +310,19 @@ def footer_payload():
 
 def fx_payload():
     return D.registry_payload()
+
+
+def hero_3d_payload(request):
+    """Products the owner picked for the homepage 3D showcase, in their chosen order."""
+    qs = (Product.objects.live().filter(is_hero_3d_featured=True).exclude(model_3d="")
+          .for_cards().order_by("hero_3d_order", "order")[:8])
+    out = []
+    for p in qs:
+        card = product_card(request, p)
+        card["model_3d"] = media_url(request, p.model_3d)
+        card["model_poster"] = media_url(request, p.model_poster) or (card["images"][0]["medium"] if card["images"] else None)
+        out.append(card)
+    return out
 
 
 def ai_payload():

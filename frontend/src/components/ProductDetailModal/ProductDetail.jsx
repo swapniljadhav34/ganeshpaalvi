@@ -123,7 +123,7 @@ export default function ProductDetail({ product: p, layout = 'modal', headingId 
 
       <div className={styles.grid}>
         <div className={styles.left}>
-          <Gallery slug={p.slug} images={images} video={p.demo_video} title={p.title} />
+          <Gallery slug={p.slug} images={images} video={p.demo_video} title={p.title} model={p.model_3d} modelPoster={p.model_poster} />
         </div>
 
         <div className={styles.right}>

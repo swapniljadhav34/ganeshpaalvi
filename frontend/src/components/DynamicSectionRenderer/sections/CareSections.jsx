@@ -1,5 +1,5 @@
 // Care education sections: Ingredient Spotlight, Routine Builder (Morning/Night), Bristle & Product Guide.
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Moon, Sun } from 'lucide-react';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -11,6 +11,7 @@ import { formatINR } from '../../../utils/format';
 import Icon from '../../ui/Icon';
 import SectionShell, { SectionHeader } from '../SectionShell';
 import styles from '../Sections.module.css';
+import { useCalm } from '../../../hooks/useCalm';
 
 function SpotMedia({ current, index, section }) {
   const fx = useFx();
@@ -36,7 +37,7 @@ function useOpenProduct() {
 export function IngredientSpotlight({ section }) {
   const items = Array.isArray(section.items) ? section.items : [];
   const [active, setActive] = useState(0);
-  const reduce = useReducedMotion();
+  const reduce = useCalm();
   if (!items.length) return null;
   const current = items[active] || items[0];
   return (

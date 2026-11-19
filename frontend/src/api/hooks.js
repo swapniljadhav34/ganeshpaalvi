@@ -2,11 +2,29 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchBootstrap, fetchProduct, fetchProducts } from './client';
 
+/** Homepage data the server already put in the HTML (saves a round trip before the hero paints). */
+function inlinedBootstrap() {
+  if (typeof document === 'undefined') return undefined;
+  const el = document.getElementById('__BOOT__');
+  if (!el) return undefined;
+  try {
+    const data = JSON.parse(el.textContent);
+    el.remove();
+    return data;
+  } catch {
+    return undefined;
+  }
+}
+const BOOT = inlinedBootstrap();
+const BOOT_AT = Date.now();
+
 export function useBootstrap() {
   return useQuery({
     queryKey: ['bootstrap'],
     queryFn: ({ signal }) => fetchBootstrap({ signal }),
     staleTime: 5 * 60 * 1000,
+    initialData: BOOT,
+    initialDataUpdatedAt: BOOT ? BOOT_AT : undefined,
   });
 }
 

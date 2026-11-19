@@ -1,0 +1,73 @@
+# Paalvi on any Docker host (AWS Lightsail / EC2, Oracle, Hostinger VPS, DigitalOcean…).
+#
+#   1. cp backend/.env.example backend/.env   and fill in DJANGO_SECRET_KEY, SITE_URL, ALLOWED_HOSTS…
+#   2. export DOMAIN=shop.example.com POSTGRES_PASSWORD=<long random>
+#   3. docker compose up -d --build
+#   4. docker compose exec web python manage.py createsuperuser
+#
+# Caddy gets and renews the HTTPS certificate automatically (ports 80 + 443 must be open).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: paalvi
+      POSTGRES_USER: paalvi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paalvi"]
+      interval: 10s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: backend/.env
+    environment:
+      DATABASE_URL: postgres://paalvi:${POSTGRES_PASSWORD}@db:5432/paalvi
+      REDIS_URL: redis://redis:6379/1
+      CLIENT_IP_HEADER: HTTP_X_REAL_IP
+      PRIVATE_MEDIA_ROOT: /app/backend/private_media
+    volumes:
+      - media:/app/backend/media
+      - private:/app/backend/private_media
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_started }
+
+  scheduler:   # nightly: inventory alerts, overdue invoices, analytics clean-up
+    build: .
+    restart: unless-stopped
+    env_file: backend/.env
+    environment:
+      DATABASE_URL: postgres://paalvi:${POSTGRES_PASSWORD}@db:5432/paalvi
+      REDIS_URL: redis://redis:6379/1
+      RUN_MIGRATIONS: "0"
+    command: ["sh", "-c", "while true; do python manage.py run_daily; sleep 86400; done"]
+    depends_on: [web]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - media:/srv/media:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [web]
+
+volumes:
+  pgdata:
+  media:
+  private:
+  caddy_data:
+  caddy_config:

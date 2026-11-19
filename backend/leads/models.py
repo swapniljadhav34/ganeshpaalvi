@@ -51,6 +51,7 @@ class LeadInquiry(models.Model):
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.NEW, db_index=True)
     notes = models.TextField(blank=True, help_text="Private notes for your team — customers never see these.")
     page_url = models.CharField(max_length=400, blank=True, help_text="Page the visitor was on.")
+    consent_at = models.DateTimeField(null=True, blank=True, help_text="When the visitor agreed to be contacted (privacy notice).")
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 

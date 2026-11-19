@@ -1,6 +1,6 @@
 // Product card: 4:5 image on a soft tint, second-image cross-fade on hover, desktop-only tilt (max 5°)
 // with a soft light sweep, badges, variant swatches, pack chips and one-tap WhatsApp.
-import { motion, useMotionTemplate, useMotionValue, useReducedMotion, useSpring } from 'framer-motion';
+import { motion, useMotionTemplate, useMotionValue, useSpring } from 'framer-motion';
 import { memo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { usePrefetchProduct } from '../../api/hooks';
@@ -12,6 +12,7 @@ import { STOCK_LABELS, tierPrice } from '../../utils/format';
 import { WhatsAppIcon } from '../ui/BrandIcons';
 import Price from '../ui/Price';
 import styles from './ProductCatalog.module.css';
+import { useCalm } from '../../hooks/useCalm';
 
 function CardBadges({ p }) {
   const items = [];
@@ -33,7 +34,7 @@ function ProductCard({ product: p, index = 0, shared = true }) {
   const location = useLocation();
   const prefetch = usePrefetchProduct();
   const { whatsapp, tier, design } = useSite();
-  const reduce = useReducedMotion();
+  const reduce = useCalm();
   const ref = useRef(null);
   const tilt = design.card_hover === 'tilt_3d';
   const fine = { current: hasFinePointer() && tilt };
@@ -74,8 +75,8 @@ function ProductCard({ product: p, index = 0, shared = true }) {
       style={fine.current ? { rotateX: rx, rotateY: ry, transformPerspective: 900 } : undefined}
       onPointerMove={onMove}
       onPointerLeave={onLeave}
-      onPointerEnter={() => prefetch(p.slug)}
-      onTouchStart={() => prefetch(p.slug)}
+      // Prefetch on mouse hover only: on phones a touch usually starts a scroll, not a tap.
+      onPointerEnter={(e) => e.pointerType === 'mouse' && prefetch(p.slug)}
       {...(reduce ? {} : entrance)}
     >
       <button type="button" className={styles.cardHit} onClick={open} aria-label={`${p.title}, view details`} />
@@ -83,7 +84,7 @@ function ProductCard({ product: p, index = 0, shared = true }) {
         <motion.div layoutId={shared ? `media-${p.slug}` : undefined} className={styles.mediaInner}>
           {img1?.thumb ? (
             <img src={img1.thumb} srcSet={img1.medium ? `${img1.thumb} 480w, ${img1.medium} 960w` : undefined}
-              sizes="(min-width: 1200px) 22vw, (min-width: 768px) 30vw, 48vw" alt={img1.alt} loading={index < 4 ? 'eager' : 'lazy'}
+              sizes="(min-width: 1200px) 22vw, (min-width: 768px) 30vw, 48vw" alt={img1.alt} loading="lazy"
               decoding="async" className={styles.img} width="480" height="600" />
           ) : <div className={styles.noImg} aria-hidden="true">{p.title.slice(0, 1)}</div>}
           {img2?.thumb && <img src={img2.thumb} alt="" loading="lazy" decoding="async" className={`${styles.img} ${styles.img2}`} width="480" height="600" />}

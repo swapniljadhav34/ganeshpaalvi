@@ -17,9 +17,17 @@ export default function SearchPanel({ open, onClose }) {
   const location = useLocation();
   const { scrollTo } = useSmoothScroll();
 
+  const returnTo = useRef(null);
+
+  // Focus the input on open; give focus back to whatever opened the search on close.
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 60);
-    else setQ('');
+    if (open) {
+      returnTo.current = document.activeElement;
+      setTimeout(() => inputRef.current?.focus(), 60);
+    } else {
+      setQ('');
+      if (returnTo.current?.focus) returnTo.current.focus();
+    }
   }, [open]);
 
   // Debounced search: waits 300ms after the last keystroke, cancels stale requests.
@@ -79,6 +87,7 @@ export default function SearchPanel({ open, onClose }) {
           <motion.div
             className={`${styles.searchPanel} pv-glass`}
             role="dialog"
+            aria-modal="true"
             aria-label="Search products"
             initial={{ opacity: 0, y: -12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}

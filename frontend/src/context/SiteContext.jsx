@@ -1,11 +1,14 @@
 // Site-wide state: API bootstrap data, Retail/Wholesale tier, and shared UI controls
 // (enquiry form, AI guide). Any component can read these with useSite().
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { MotionConfig } from 'framer-motion';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useBootstrap } from '../api/hooks';
 import { readStore, writeStore } from '../utils/storage';
 import { buildWhatsAppMessage, openWhatsApp } from '../utils/whatsapp';
 
 const SiteContext = createContext(null);
+// Separate tiny context so the many animated components don't re-render on every site change.
+export const MotionPauseContext = createContext(false);
 
 // Used until the API answers (and for any setting an older backend doesn't send).
 export const DEFAULT_DESIGN = {
@@ -28,6 +31,16 @@ export function SiteProvider({ children }) {
   const [enquiry, setEnquiry] = useState(null); // { product, source, buyerType, ... } when the form is open
   const [guideOpen, setGuideOpen] = useState(false);
   const [guidePrompt, setGuidePrompt] = useState('');
+  const [motionPaused, setMotionPausedState] = useState(() => readStore('paalvi:motion-paused', false) === true);
+
+  const setMotionPaused = useCallback((next) => {
+    setMotionPausedState(next);
+    writeStore('paalvi:motion-paused', next);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('pv-paused', motionPaused);
+  }, [motionPaused]);
 
   const setTier = useCallback((next) => {
     setTierState(next);
@@ -66,6 +79,8 @@ export function SiteProvider({ children }) {
       brand,
       design,
       setDesignOverride,
+      motionPaused,
+      setMotionPaused,
       theme: data?.theme,
       isLoading,
       isError,
@@ -81,10 +96,17 @@ export function SiteProvider({ children }) {
       openGuide,
       closeGuide: () => setGuideOpen(false),
     }),
-    [data, brand, design, isLoading, isError, refetch, tier, setTier, whatsapp, enquiry, guideOpen, guidePrompt, openGuide],
+    [data, brand, design, motionPaused, setMotionPaused, isLoading, isError, refetch, tier, setTier, whatsapp, enquiry, guideOpen, guidePrompt, openGuide],
   );
 
-  return <SiteContext.Provider value={value}>{children}</SiteContext.Provider>;
+  return (
+    <SiteContext.Provider value={value}>
+      <MotionPauseContext.Provider value={motionPaused}>
+        {/* "user" respects the phone's reduce-motion setting; the pause button turns everything off. */}
+        <MotionConfig reducedMotion={motionPaused ? 'always' : 'user'}>{children}</MotionConfig>
+      </MotionPauseContext.Provider>
+    </SiteContext.Provider>
+  );
 }
 
 export function useSite() {

@@ -20,19 +20,25 @@ from ninja import NinjaAPI, Query, Schema
 from ninja.errors import HttpError
 from pydantic import EmailStr, Field, field_validator
 
+from django.utils import timezone
+
 from catalog.models import Badge, Category, PackageOption, Product, ProductVariant
 from leads.models import LeadInquiry
+from ops.api import analytics_router, staff_router
 from storefront.models import BrandSettings
-from storefront.utils import BOOTSTRAP_CACHE_KEY
+from storefront.utils import BOOTSTRAP_CACHE_KEY, catalog_version
 
 from . import serializers as s
-from .ai import ask_guide
+from .ai import ask_guide, sign_reply
 from .ratelimit import rate_limit
 from .search import filter_products
 
 log = logging.getLogger("paalvi")
 api = NinjaAPI(title="Paalvi API", version="1.0", docs_url="/docs" if settings.DEBUG else None)
+api.add_router("/staff", staff_router)
+api.add_router("/analytics", analytics_router)
 PAGE_SIZE = 24
+DETAIL_CACHE_SECONDS = 300
 
 # Steps of a daily oral-care routine, matched against category names/slugs.
 ROUTINE_STEPS = [
@@ -57,6 +63,11 @@ def categories_tree():
 
 @api.get("/bootstrap", tags=["site"])
 def bootstrap(request):
+    return build_bootstrap(request)
+
+
+def build_bootstrap(request):
+    """Everything the homepage needs. Cached; also inlined into the HTML by api.seo.spa_view."""
     data = cache.get(BOOTSTRAP_CACHE_KEY)
     if data is None:
         roots, nodes = categories_tree()
@@ -83,6 +94,7 @@ def bootstrap(request):
             "nav": s.nav_payload(),
             "footer": s.footer_payload(),
             "fx": s.fx_payload(),
+            "hero_3d": s.hero_3d_payload(request),
         }
         cache.set(BOOTSTRAP_CACHE_KEY, data, 300)
     return data
@@ -112,11 +124,11 @@ def preview(request, token: str):
 
 # --- Catalog ----------------------------------------------------------------
 class ProductFilters(Schema):
-    q: str | None = None
-    category: str | None = None
-    badge: str | None = None
-    suitable_for: str | None = None
-    variant: str | None = Field(None, description="e.g. bristle:soft or flavour:mint (comma separated)")
+    q: str | None = Field(None, max_length=120)
+    category: str | None = Field(None, max_length=120)
+    badge: str | None = Field(None, max_length=300)
+    suitable_for: str | None = Field(None, max_length=120)
+    variant: str | None = Field(None, max_length=300, description="e.g. bristle:soft or flavour:mint (comma separated, max 5)")
     sort: Literal["newest", "price_asc", "price_desc", "discount", "bestseller", "featured"] | None = None
     min_discount: int | None = Field(None, ge=0, le=90)
     min_price: float | None = None
@@ -127,6 +139,7 @@ class ProductFilters(Schema):
 
 
 @api.get("/products", tags=["catalog"])
+@rate_limit("catalog", lambda: settings.RATE_LIMIT_CATALOG_PER_MIN)
 def products(request, f: Query[ProductFilters]):
     qs = filter_products(
         Product.objects.live(), q=f.q, category=f.category, badge=f.badge, suitable_for=f.suitable_for,
@@ -151,7 +164,18 @@ def routine_step(category):
 
 
 @api.get("/products/{slug}", tags=["catalog"])
+@rate_limit("catalog", lambda: settings.RATE_LIMIT_CATALOG_PER_MIN)
 def product_detail(request, slug: str):
+    # ~40 queries uncached (related + routine picks) → cached per catalog version, cleared on any admin/stock change.
+    key = f"paalvi:pd:{catalog_version()}:{slug[:200]}"
+    data = cache.get(key)
+    if data is None:
+        data = _product_detail(request, slug)
+        cache.set(key, data, DETAIL_CACHE_SECONDS)
+    return data
+
+
+def _product_detail(request, slug):
     p = get_object_or_404(
         Product.objects.live().select_related("category").prefetch_related(
             "images", "badges", "key_ingredients", "variants", "packages"),
@@ -187,6 +211,7 @@ def product_detail(request, slug: str):
 class ChatTurn(Schema):
     role: Literal["user", "assistant"]
     content: str = Field(..., max_length=2000)
+    sig: str = Field("", max_length=200)  # assistant replies are signed by us; forged ones are dropped
 
 
 class GuideIn(Schema):
@@ -202,7 +227,12 @@ def ai_guide(request, payload: GuideIn):
 
     if not AIAssistantConfig.load().is_active:
         raise HttpError(503, "The Care Guide is resting right now. Please reach us on WhatsApp.")
-    return ask_guide(request, payload.message.strip(), [t.dict() for t in payload.history], payload.tier)
+    # A visitor could send fake "assistant" turns to talk the guide out of its rules — keep only ones we signed.
+    history = [{"role": t.role, "content": t.content} for t in payload.history
+               if t.role == "user" or (t.sig and t.sig == sign_reply(t.content))]
+    result = ask_guide(request, payload.message.strip(), history, payload.tier)
+    result["sig"] = sign_reply(result["reply"])
+    return result
 
 
 # --- Leads ------------------------------------------------------------------
@@ -220,7 +250,8 @@ class InquiryIn(Schema):
     tier: Literal["retail", "wholesale"] = "retail"
     quantity: int | None = Field(None, ge=1, le=10_000_000)
     source: Literal["whatsapp", "email", "ai", "contact", "b2b"] = "contact"
-    page_url: str = Field("", max_length=400)
+    page_url: str = Field("", max_length=4000)
+    consent: bool = Field(False, description="Visitor ticked 'I agree to be contacted' (privacy notice).")
     website: str = Field("", description="Honeypot — real people leave this empty.")
 
     @field_validator("phone")
@@ -241,6 +272,8 @@ def inquiry(request, payload: InquiryIn):
     needs_contact = payload.source not in ("whatsapp",)  # WhatsApp taps identify themselves inside WhatsApp
     if needs_contact and not (payload.phone or payload.email):
         raise HttpError(422, "Please share a phone number or email so we can get back to you.")
+    if needs_contact and not payload.consent:
+        raise HttpError(422, "Please tick the box to agree to be contacted about your enquiry.")
 
     product = Product.objects.filter(slug=payload.product).first() if payload.product else None
     variant = ProductVariant.objects.filter(pk=payload.variant_id, product=product).first() if (product and payload.variant_id) else None
@@ -250,7 +283,7 @@ def inquiry(request, payload: InquiryIn):
         name=payload.name.strip(), phone=payload.phone, email=payload.email or "", business_name=payload.business_name.strip(),
         buyer_type=payload.buyer_type, city=payload.city.strip(), message=payload.message.strip(), product=product,
         variant=variant, package=package, tier=payload.tier, quantity=payload.quantity, source=payload.source,
-        page_url=payload.page_url,
+        page_url=payload.page_url[:400], consent_at=timezone.now() if payload.consent else None,
     )
     if settings.LEAD_NOTIFY_EMAILS and payload.source != "whatsapp":
         try:

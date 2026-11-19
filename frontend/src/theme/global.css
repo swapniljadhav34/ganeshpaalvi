@@ -133,6 +133,14 @@ textarea.pv-input { min-height: 96px; resize: vertical; }
 }
 @keyframes pv-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 
+/* ---- The only Bootstrap utilities the site used (Bootstrap CSS itself is no longer shipped) ---- */
+.d-none { display: none !important; }
+@media (min-width: 576px) { .d-sm-inline-grid { display: inline-grid !important; } }
+@media (min-width: 768px) { .d-md-block { display: block !important; } .d-md-none { display: none !important; } }
+
+/* ---- "Pause animations" (footer button): freeze every CSS animation & transition loop ---- */
+html.pv-paused *, html.pv-paused *::before, html.pv-paused *::after { animation-play-state: paused !important; }
+
 /* ---- Loading screen ---- */
 .pv-splash { position: fixed; inset: 0; z-index: 3000; display: grid; place-items: center; background: var(--color-surface); }
 .pv-splash-word { font-family: var(--font-display); font-size: 2rem; letter-spacing: 0.2em; display: flex; }

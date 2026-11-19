@@ -9,13 +9,23 @@ run the project with zero configuration.
 import os
 from pathlib import Path
 
+import mimetypes
+from datetime import timedelta
+
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 from django.templatetags.static import static
 from django.urls import reverse_lazy
 from dotenv import load_dotenv
+from PIL import Image
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
+
+# Refuse absurdly large photos (decompression bombs) before they eat the server's memory.
+Image.MAX_IMAGE_PIXELS = 60_000_000
+# .glb 3D models must be served with the right type or browsers refuse them.
+mimetypes.add_type("model/gltf-binary", ".glb")
 
 
 def env_bool(name, default=False):
@@ -29,8 +39,11 @@ def env_list(name, default=""):
 
 
 # --- Core -------------------------------------------------------------------
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-insecure-key-change-me")
-DEBUG = env_bool("DJANGO_DEBUG", True)
+# Fail closed: production is the default. Your laptop's backend/.env sets DJANGO_DEBUG=true.
+DEBUG = env_bool("DJANGO_DEBUG", False)
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY") or ("dev-only-insecure-key" if DEBUG else "")
+if not SECRET_KEY:
+    raise ImproperlyConfigured("DJANGO_SECRET_KEY is not set. Add it to backend/.env (see .env.example).")
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,paalvi.in,www.paalvi.in,api.paalvi.in")
 CSRF_TRUSTED_ORIGINS = env_list(
     "CSRF_TRUSTED_ORIGINS", "https://paalvi.in,https://www.paalvi.in,https://api.paalvi.in"
@@ -38,6 +51,17 @@ CSRF_TRUSTED_ORIGINS = env_list(
 
 # Public site address — used for sitemap links, share links and "View on site".
 SITE_URL = os.getenv("SITE_URL", "http://localhost:5173" if DEBUG else "https://paalvi.in").rstrip("/")
+# Where uploaded photos are publicly reachable. Same as the site unless media lives elsewhere.
+MEDIA_BASE_URL = os.getenv("MEDIA_BASE_URL", SITE_URL).rstrip("/")
+# Admin address. Moving it away from /admin/ cuts automated login attacks.
+ADMIN_URL = os.getenv("ADMIN_URL", "admin/").strip("/") + "/"
+
+# Which request header holds the real visitor IP (set by YOUR proxy, never by the visitor):
+#   HTTP_X_REAL_IP          nginx (deploy/setup.sh, docker)        — default
+#   HTTP_CF_CONNECTING_IP   Cloudflare in front
+#   XFF_RIGHTMOST           Heroku / AWS ALB (last X-Forwarded-For entry)
+#   REMOTE_ADDR             no proxy at all
+CLIENT_IP_HEADER = os.getenv("CLIENT_IP_HEADER", "HTTP_X_REAL_IP")
 
 INSTALLED_APPS = [
     # Unfold must come before django.contrib.admin so its beautiful theme wins.
@@ -56,10 +80,12 @@ INSTALLED_APPS = [
     "corsheaders",
     "import_export",
     "imagekit",
+    "axes",
     # Paalvi apps
     "storefront",
     "catalog",
     "leads",
+    "ops",
     "api",
 ]
 
@@ -73,7 +99,17 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "axes.middleware.AxesMiddleware",  # must be last: blocks locked-out logins
 ]
+
+# --- Login protection: 5 wrong passwords for a username from one IP → locked for 1 hour ---
+AUTHENTICATION_BACKENDS = ["axes.backends.AxesStandaloneBackend", "django.contrib.auth.backends.ModelBackend"]
+AXES_FAILURE_LIMIT = int(os.getenv("AXES_FAILURE_LIMIT", "5"))
+AXES_COOLOFF_TIME = timedelta(hours=1)
+AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
+AXES_RESET_ON_SUCCESS = True
+AXES_CLIENT_IP_CALLABLE = "api.ratelimit.client_ip"
+AXES_VERBOSE = False
 
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
@@ -123,6 +159,10 @@ else:
         }
     }
 
+# Tests get their own throwaway cache so they can never overwrite the real site's cached pages.
+if len(os.sys.argv) > 1 and os.sys.argv[1] == "test":
+    CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -130,8 +170,8 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-LOGIN_URL = "/admin/login/"
-LOGIN_REDIRECT_URL = "/admin/"
+LOGIN_URL = f"/{ADMIN_URL}login/"
+LOGIN_REDIRECT_URL = f"/{ADMIN_URL}"
 
 LANGUAGE_CODE = "en-in"
 TIME_ZONE = "Asia/Kolkata"
@@ -170,18 +210,45 @@ if USE_S3_MEDIA:
         },
     }
 
+# Private files (expense receipts) — never under /media/, only downloadable through a permission check.
+PRIVATE_MEDIA_ROOT = Path(os.getenv("PRIVATE_MEDIA_ROOT", BASE_DIR / "private_media"))
+# Hosts without a permanent disk: a SEPARATE non-public bucket for receipts (same S3_* credentials).
+S3_PRIVATE_BUCKET_NAME = os.getenv("S3_PRIVATE_BUCKET_NAME", "")
+S3_ENDPOINT_URL = os.getenv("S3_ENDPOINT_URL", "")
+S3_ACCESS_KEY_ID = os.getenv("S3_ACCESS_KEY_ID", "")
+S3_SECRET_ACCESS_KEY = os.getenv("S3_SECRET_ACCESS_KEY", "")
+
 # Built React app (frontend/dist). When present, Django can serve it with
-# server-rendered share previews for WhatsApp / Facebook (see api/spa.py).
+# server-rendered share previews for WhatsApp / Facebook (see api/seo.py).
 FRONTEND_DIST = Path(os.getenv("FRONTEND_DIST", BASE_DIR.parent / "frontend" / "dist"))
+# WhiteNoise serves the built JS/CSS compressed (gzip + brotli) with year-long caching,
+# so hosts without nginx (Heroku, App Runner, Render…) are fast too.
+if FRONTEND_DIST.is_dir():
+    WHITENOISE_ROOT = FRONTEND_DIST
+
+
+def _immutable(path, url):
+    """Vite's /assets/* and Django's hashed static files never change → cache for a year."""
+    import re
+
+    return url.startswith("/assets/") or bool(re.search(r"\.[0-9a-f]{12}\.\w+$", url))
+
+
+WHITENOISE_IMMUTABLE_FILE_TEST = _immutable
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
-FILE_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024
+# Files above 5 MB stream to a temp file instead of RAM (keeps a 1 GB server safe).
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+MAX_3D_MODEL_MB = int(os.getenv("MAX_3D_MODEL_MB", "20"))
 
 # --- CORS: only paalvi.in may call the API from a browser --------------------
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "https://paalvi.in,https://www.paalvi.in")
 if DEBUG:
     CORS_ALLOWED_ORIGINS += ["http://localhost:5173", "http://127.0.0.1:5173"]
+    # The Vite dev server proxies /api, so Studio logins arrive with the :5173 origin.
+    CSRF_TRUSTED_ORIGINS += ["http://localhost:5173", "http://127.0.0.1:5173"]
 
 # --- Security for production ------------------------------------------------
 if not DEBUG:
@@ -189,8 +256,15 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", True)
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
+    SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", str(60 * 60 * 24 * 30)))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", False)
     SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+    SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
+# Staff sessions: 12 hours, ended when the browser closes is too annoying on phones.
+SESSION_COOKIE_AGE = 60 * 60 * 12
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = "Lax"
 
 # --- Email (new-lead notifications) ----------------------------------------
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
@@ -201,16 +275,34 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Paalvi <no-reply@paalvi.in>")
 LEAD_NOTIFY_EMAILS = env_list("LEAD_NOTIFY_EMAILS", "")
+EMAIL_TIMEOUT = 5  # an unreachable mail server must never hang a web worker
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+ADMINS = [("Owner", e) for e in env_list("ERROR_EMAILS", "")]
 
 # --- AI concierge (any OpenAI-compatible provider) ---------------------------
 AI_BASE_URL = os.getenv("AI_BASE_URL", "https://api.groq.com/openai/v1")
 AI_API_KEY = os.getenv("AI_API_KEY", "")
 AI_MODEL = os.getenv("AI_MODEL", "llama-3.1-8b-instant")
-AI_TIMEOUT_SECONDS = float(os.getenv("AI_TIMEOUT_SECONDS", "20"))
+AI_TIMEOUT_SECONDS = float(os.getenv("AI_TIMEOUT_SECONDS", "12"))
 
 # --- Rate limits (requests per minute per visitor IP) ------------------------
+# Indian mobile networks put many people behind one IP, so these are generous.
 RATE_LIMIT_AI_PER_MIN = int(os.getenv("RATE_LIMIT_AI_PER_MIN", "15"))
-RATE_LIMIT_INQUIRY_PER_MIN = int(os.getenv("RATE_LIMIT_INQUIRY_PER_MIN", "5"))
+RATE_LIMIT_INQUIRY_PER_MIN = int(os.getenv("RATE_LIMIT_INQUIRY_PER_MIN", "12"))
+RATE_LIMIT_CATALOG_PER_MIN = int(os.getenv("RATE_LIMIT_CATALOG_PER_MIN", "180"))
+RATE_LIMIT_TRACK_PER_MIN = int(os.getenv("RATE_LIMIT_TRACK_PER_MIN", "120"))
+RATE_LIMIT_LOGIN_PER_MIN = int(os.getenv("RATE_LIMIT_LOGIN_PER_MIN", "10"))
+
+# --- Inventory & analytics -------------------------------------------------------
+TRAFFIC_RETENTION_DAYS = int(os.getenv("TRAFFIC_RETENTION_DAYS", "180"))
+
+# --- Error reporting (optional): set SENTRY_DSN to get an alert for every server error ---
+SENTRY_DSN = os.getenv("SENTRY_DSN", "")
+if SENTRY_DSN:
+    import sentry_sdk
+
+    sentry_sdk.init(dsn=SENTRY_DSN, traces_sample_rate=float(os.getenv("SENTRY_TRACES", "0.0")),
+                    send_default_pii=False, environment="development" if DEBUG else "production")
 
 # --- Admin look & feel (django-unfold) --------------------------------------
 UNFOLD = {
@@ -318,9 +410,30 @@ UNFOLD = {
                 ],
             },
             {
+                "title": "Operations",
+                "collapsible": True,
+                "items": [
+                    {"title": "Open Paalvi Studio ↗", "icon": "open_in_new", "link": f"{SITE_URL}/studio"},
+                    {"title": "Stock items", "icon": "inventory",
+                     "link": reverse_lazy("admin:ops_inventoryitem_changelist")},
+                    {"title": "Stock movement log", "icon": "history",
+                     "link": reverse_lazy("admin:ops_stockmovement_changelist")},
+                    {"title": "Production batches", "icon": "precision_manufacturing",
+                     "link": reverse_lazy("admin:ops_productionbatch_changelist")},
+                    {"title": "Invoices", "icon": "receipt_long",
+                     "link": reverse_lazy("admin:ops_invoice_changelist")},
+                    {"title": "Expenses", "icon": "payments",
+                     "link": reverse_lazy("admin:ops_expense_changelist")},
+                    {"title": "Inventory settings", "icon": "tune",
+                     "link": reverse_lazy("admin:ops_inventorysettings_changelist")},
+                ],
+            },
+            {
                 "title": "Team",
                 "collapsible": True,
                 "items": [
+                    {"title": "Staff roles (Studio access)", "icon": "badge",
+                     "link": reverse_lazy("admin:ops_staffprofile_changelist")},
                     {"title": "Staff accounts", "icon": "person",
                      "link": reverse_lazy("admin:auth_user_changelist")},
                     {"title": "Permission groups", "icon": "group",
@@ -334,9 +447,16 @@ UNFOLD = {
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {"console": {"class": "logging.StreamHandler"}},
-    "root": {"handlers": ["console"], "level": "INFO" if not DEBUG else "WARNING"},
-    "loggers": {"paalvi": {"handlers": ["console"], "level": "INFO", "propagate": False}},
+    "formatters": {"plain": {"format": "%(asctime)s %(levelname)s %(name)s: %(message)s"}},
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "plain"},
+        "mail_admins": {"class": "django.utils.log.AdminEmailHandler", "level": "ERROR"},
+    },
+    "root": {"handlers": ["console"], "level": "WARNING"},
+    "loggers": {
+        "paalvi": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "django.request": {"handlers": ["console", "mail_admins"], "level": "ERROR", "propagate": False},
+    },
 }
 
 # Thumbnails are generated once when a photo is saved (not on every page view).

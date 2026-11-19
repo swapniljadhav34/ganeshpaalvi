@@ -1,12 +1,15 @@
 // Rotating galleries of photos & videos, in 12 styles picked from the admin.
 //  Inside one frame: fade, slide, zoom, ken_burns, flip, cube, blinds
 //  Many frames:      stack, coverflow, marquee, grid, polaroid
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ease } from '../theme/motion';
 import HoverFx from './HoverFx';
 import MediaItem from './MediaItem';
 import './fx.css';
+import { useCalm } from '../hooks/useCalm';
+
+const SMALL_SCREEN = typeof window !== 'undefined' && window.innerWidth < 768;
 
 export const FRAMED_STYLES = new Set(['fade', 'slide', 'zoom', 'ken_burns', 'flip', 'cube', 'blinds']);
 
@@ -27,7 +30,7 @@ const FRAME_ANIMS = {
 function useAutoplay(count, interval, paused) {
   const [index, setIndex] = useState(0);
   const [dir, setDir] = useState(1);
-  const reduce = useReducedMotion();
+  const reduce = useCalm();
   const go = useCallback((next, d = 1) => { setDir(d); setIndex(((next % count) + count) % count); }, [count]);
   useEffect(() => {
     if (count < 2 || paused || reduce) return undefined;
@@ -81,7 +84,7 @@ function FramedGallery({ items, style, interval, priority, speed, kenBurns }) {
           onDragEnd={(_, info) => { if (Math.abs(info.offset.x) > 60) go(index + (info.offset.x < 0 ? 1 : -1), info.offset.x < 0 ? 1 : -1); }}
         >
           <Wrap item={item}>
-            <MediaItem item={item} priority={priority && index === 0} kenBurns={kenBurns || style === 'ken_burns'} />
+            <MediaItem item={item} priority={index === 0 ? priority : false} kenBurns={kenBurns || style === 'ken_burns'} />
           </Wrap>
           {item?.caption && <span className="pv-caption">{item.caption}</span>}
         </motion.div>
@@ -111,7 +114,7 @@ function Stack({ items, interval, shapeCss, speed }) {
             dragSnapToOrigin
             onDragEnd={(_, info) => { if (Math.abs(info.offset.x) > 70) go(index + 1); }}
           >
-            <MediaItem item={item} priority={i === 0} />
+            <MediaItem item={item} priority={i === 0 ? undefined : false} still={pos > 0} />
             {item.caption && <span className="pv-caption">{item.caption}</span>}
           </motion.div>
         );
@@ -143,7 +146,7 @@ function Coverflow({ items, interval, shapeCss, speed }) {
               onClick={() => go(i)}
               aria-label={item.caption || item.alt || `Item ${i + 1}`}
             >
-              <MediaItem item={item} />
+              <MediaItem item={item} still={off !== 0} priority={false} />
               {item.caption && off === 0 && <span className="pv-caption">{item.caption}</span>}
             </motion.button>
           );
@@ -162,7 +165,7 @@ function Marquee({ items, shapeCss, hover, speed, reverse = false }) {
         {loop.map((item, i) => (
           <div key={i} className="pv-gal-marquee-item" aria-hidden={i >= items.length ? 'true' : undefined}>
             <HoverFx kind={hover} className="pv-fill">
-              <div className="pv-shaped" style={shapeCss}><Wrap item={item}><MediaItem item={item} /></Wrap></div>
+              <div className="pv-shaped" style={shapeCss}><Wrap item={item}><MediaItem item={item} still priority={false} sizes="280px" /></Wrap></div>
             </HoverFx>
           </div>
         ))}
@@ -179,7 +182,7 @@ function Grid({ items, shapeCss, hover, speed }) {
           viewport={{ once: true }} transition={{ duration: 0.8 * speed, ease, delay: i * 0.08 }}>
           <HoverFx kind={hover} className="pv-fill">
             <div className="pv-shaped" style={shapeCss}>
-              <Wrap item={item}><MediaItem item={item} /></Wrap>
+              <Wrap item={item}><MediaItem item={item} still={SMALL_SCREEN} priority={false} sizes="(min-width: 768px) 33vw, 50vw" /></Wrap>
               {item.caption && <span className="pv-caption">{item.caption}</span>}
             </div>
           </HoverFx>
@@ -211,7 +214,7 @@ function Polaroid({ items, speed }) {
             whileDrag={{ scale: 1.06, rotate: 0 }}
             onPointerDown={() => setTop(i)}
           >
-            <div className="pv-polaroid-img"><MediaItem item={item} /></div>
+            <div className="pv-polaroid-img"><MediaItem item={item} still priority={false} sizes="240px" /></div>
             <figcaption>{item.caption || ' '}</figcaption>
           </motion.figure>
         );

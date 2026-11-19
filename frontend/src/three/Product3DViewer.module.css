@@ -1,0 +1,31 @@
+.viewer {
+  position: relative; width: 100%; height: 100%; overflow: hidden; isolation: isolate;
+  background: radial-gradient(70% 60% at 50% 40%, var(--color-surface-elevated), var(--color-primary-soft) 75%);
+}
+.viewer model-viewer { position: absolute; inset: 0; z-index: 1; outline: none; }
+.viewer model-viewer:focus-visible { outline: 2px solid var(--color-primary-ink); outline-offset: -4px; }
+.poster {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; z-index: 0;
+  transition: opacity var(--dur-3) var(--ease);
+}
+.posterHidden { opacity: 0; }
+.progress { position: absolute; z-index: 2; left: 20%; right: 20%; bottom: 18px; height: 3px; border-radius: 3px; overflow: hidden;
+  background: color-mix(in srgb, var(--color-text) 12%, transparent); }
+.progress span { display: block; height: 100%; background: var(--color-primary-ink); transform-origin: 0 50%; transition: transform 0.2s linear; }
+.controls { position: absolute; z-index: 2; right: 10px; bottom: 10px; display: flex; gap: 6px; }
+.ctrl {
+  display: grid; place-items: center; width: 36px; height: 36px; border-radius: 999px; cursor: pointer; color: var(--color-text);
+  border: 1px solid var(--glass-border); background: var(--glass-bg); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+}
+.hint {
+  position: absolute; z-index: 2; left: 50%; bottom: 14px; translate: -50% 0; display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 999px; font-size: 0.74rem; font-weight: 600; pointer-events: none; white-space: nowrap;
+  background: var(--glass-bg); color: var(--color-text); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+  animation: hint 3.2s var(--ease) 1.2s both;
+}
+@keyframes hint { 0% { opacity: 0; } 15%, 85% { opacity: 1; } 100% { opacity: 0; } }
+.badge {
+  position: absolute; z-index: 2; left: 10px; top: 10px; padding: 3px 9px; border-radius: 999px; font-size: 0.68rem; font-weight: 700;
+  letter-spacing: 0.08em; background: var(--color-text); color: var(--color-surface);
+}
+@media (max-width: 767px) { .hint { bottom: 54px; } }

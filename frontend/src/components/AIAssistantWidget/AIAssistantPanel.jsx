@@ -54,12 +54,12 @@ export default function AIAssistantPanel({ open, onClose, config }) {
     const message = text.trim();
     if (!message || busy) return;
     setInput('');
-    const history = messages.filter((m) => m.role !== 'error').map(({ role, content }) => ({ role, content })).slice(-8);
+    const history = messages.filter((m) => m.role !== 'error').map(({ role, content, sig }) => ({ role, content, sig: sig || '' })).slice(-8);
     setMessages((m) => [...m, { role: 'user', content: message }]);
     setBusy(true);
     try {
       const res = await askGuide({ message, history, tier });
-      setMessages((m) => [...m, { role: 'assistant', content: res.reply, products: res.products, dentist: res.suggest_dentist, buyer: res.buyer_type }]);
+      setMessages((m) => [...m, { role: 'assistant', content: res.reply, sig: res.sig, products: res.products, dentist: res.suggest_dentist, buyer: res.buyer_type }]);
     } catch (err) {
       const text429 = err.status === 429 ? "You're asking quickly — give me a few seconds and try again." : null;
       setMessages((m) => [...m, { role: 'error', content: text429 || err.message || 'Something went wrong. Our team is happy to help on WhatsApp.' }]);

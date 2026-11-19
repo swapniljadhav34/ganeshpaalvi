@@ -2,10 +2,12 @@
 //  /           homepage (hero, sections, catalog)
 //  /p/:slug    product — opens as a modal over the catalog when clicked inside the site,
 //              or as a full page when opened directly / shared (good for SEO & WhatsApp previews).
+//  /privacy    privacy policy
+//  /studio/*   Paalvi Studio for staff (separate, lazily-loaded app — visitors never download it)
 //  /__preview  the admin's live preview panel (not for visitors)
 import { AnimatePresence, motion } from 'framer-motion';
 import { RefreshCw } from 'lucide-react';
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import AIAssistantWidget from './components/AIAssistantWidget/AIAssistantWidget';
 import EnquiryForm from './components/EnquiryForm/EnquiryForm';
@@ -18,9 +20,13 @@ import { useSite } from './context/SiteContext';
 import SiteEffects from './fx/SiteEffects';
 import HomePage from './pages/HomePage';
 import NotFound from './pages/NotFound';
-import PreviewPage from './pages/PreviewPage';
+import PrivacyPage from './pages/PrivacyPage';
 import ProductPage from './pages/ProductPage';
+import { usePageTracking } from './utils/analytics';
 import { readStore, writeStore } from './utils/storage';
+
+const PreviewPage = lazy(() => import('./pages/PreviewPage'));
+const StudioApp = lazy(() => import('./studio/StudioApp'));
 
 const ease = [0.22, 1, 0.36, 1];
 
@@ -76,6 +82,11 @@ export default function App() {
     if (!background && !location.hash) window.scrollTo(0, 0);
   }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  usePageTracking();
+
+  if (location.pathname === '/studio' || location.pathname.startsWith('/studio/')) {
+    return <Suspense fallback={<Splash kind="pulse" />}><StudioApp /></Suspense>;
+  }
   if (isError && !data) return <Offline onRetry={refetch} />;
   const preview = location.pathname === '/__preview';
 
@@ -86,7 +97,7 @@ export default function App() {
         <>
           <FestivalThemeEngine />
           <SiteEffects />
-          <PreviewPage />
+          <Suspense fallback={null}><PreviewPage /></Suspense>
         </>
       )}
       {data && !preview && (
@@ -98,6 +109,7 @@ export default function App() {
           <Routes location={background || location}>
             <Route path="/" element={<main><HomePage /></main>} />
             <Route path="/p/:slug" element={<ProductPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <AnimatePresence>

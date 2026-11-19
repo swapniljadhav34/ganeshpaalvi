@@ -1,7 +1,7 @@
 // Header with announcement bar, admin-editable menu, live search and Retail/Wholesale toggle.
 // Style (floating pill, full bar, minimal, centered, split), scroll behaviour, wordmark size,
 // entrance animation and which buttons show are all chosen in Site Design Studio.
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Search, Sparkles, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -13,6 +13,7 @@ import { useLinkProps } from '../../utils/useLinkAction';
 import SearchPanel from './SearchPanel';
 import TierToggle from './TierToggle';
 import styles from './Header.module.css';
+import { useCalm } from '../../hooks/useCalm';
 
 const SECTION_ANCHORS = { '#ritual': 'routine_builder', '#business': 'for_business', '#faq': 'faq' };
 
@@ -21,7 +22,7 @@ function AnnouncementBar({ announcement, style }) {
   const key = `paalvi:announce:${messages.join('|')}`;
   const [hidden, setHidden] = useState(() => readStore(key, false));
   const [i, setI] = useState(0);
-  const reduce = useReducedMotion();
+  const reduce = useCalm();
   const ref = useRef(null);
   const linkProps = useLinkProps();
   const visible = announcement?.active && !hidden;

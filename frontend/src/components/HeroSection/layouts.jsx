@@ -1,7 +1,7 @@
 // The 24 hero layouts. Each receives the slide, its resolved effects (fx) and media list,
 // and is built from the shared design kit, so shapes / animations / galleries chosen in the
 // admin apply everywhere.
-import { motion, useMotionTemplate, useMotionValue, useReducedMotion, useScroll, useTransform } from 'framer-motion';
+import { motion, useMotionTemplate, useMotionValue, useScroll, useTransform } from 'framer-motion';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSite } from '../../context/SiteContext';
 import AnimatedText from '../../fx/AnimatedText';
@@ -11,9 +11,11 @@ import MediaItem from '../../fx/MediaItem';
 import { useDepth, usePointer } from '../../fx/PointerArea';
 import ShapedMedia from '../../fx/ShapedMedia';
 import { ease } from '../../theme/motion';
+import Hero3DShowcase from '../../three/Hero3DShowcase';
 import Price from '../ui/Price';
 import { BgMedia, HeroCopy, ProductChip, fill } from './HeroParts';
 import s from './Hero.module.css';
+import { useCalm } from '../../hooks/useCalm';
 
 const Veil = ({ kind = 'side' }) => <div className={`${s.veil} ${s[`veil_${kind}`]}`} />;
 
@@ -29,7 +31,7 @@ function Droplets() {
 }
 
 const shaped = (fx, media, extra = {}) => (
-  <ShapedMedia media={media} shape={fx.shape} motion={fx.motion} hover={fx.hover} gallery={fx.gallery} interval={fx.interval} speed={fx.speed} priority {...extra} />
+  <ShapedMedia media={media} shape={fx.shape} motion={fx.motion} hover={fx.hover} gallery={fx.gallery} interval={fx.interval} speed={fx.speed} sizes="(min-width: 992px) 50vw, 100vw" {...extra} />
 );
 
 // 1 ─ Cinematic full screen
@@ -66,7 +68,7 @@ function Centered({ slide, fx, media }) {
 
 // 3 ─ Ken Burns slideshow with story-style progress bars
 function Slideshow({ slide, fx, media }) {
-  const reduce = useReducedMotion();
+  const reduce = useCalm();
   const [i, setI] = useState(0);
   const n = Math.max(media.length, 1);
   useEffect(() => {
@@ -79,7 +81,7 @@ function Slideshow({ slide, fx, media }) {
       <div className={s.bg}>
         {media.map((m, k) => (
           <motion.div key={k} className={s.fill} initial={false} animate={{ opacity: k === i ? 1 : 0 }} transition={{ duration: 1.4 * fx.speed, ease }}>
-            <MediaItem item={m} priority={k === 0} kenBurns={!reduce} />
+            <MediaItem item={m} priority={k === 0 ? undefined : false} kenBurns={!reduce} />
           </motion.div>
         ))}
         {!media.length && <div className={s.gradient} />}
@@ -164,7 +166,7 @@ function ZoomScroll({ slide, fx, media }) {
 // 7 ─ Torch spotlight
 function Spotlight({ slide, fx, media }) {
   const { px, py } = usePointer();
-  const reduce = useReducedMotion();
+  const reduce = useCalm();
   const zero = useMotionValue(0);
   const mx = useTransform(px || zero, (v) => 50 + v * 50);
   const my = useTransform(py || zero, (v) => 50 + v * 50);
@@ -321,7 +323,7 @@ function Diagonal({ slide, fx, media }) {
 function Orbit({ slide, fx, media }) {
   const [center, ...rest] = media.length ? media : [null];
   const ring = fill(rest.length ? rest : media, 6).slice(0, 8);
-  const reduce = useReducedMotion();
+  const reduce = useCalm();
   return (
     <div className={`pv-container ${s.twoCol}`}>
       <HeroCopy slide={slide} fx={fx} />
@@ -333,7 +335,7 @@ function Orbit({ slide, fx, media }) {
               <motion.div key={i} className={s.orbitItem} style={{ left: `${50 + Math.cos(a) * 46}%`, top: `${50 + Math.sin(a) * 46}%` }}
                 animate={reduce ? undefined : { rotate: -360 }} transition={{ duration: 60 * fx.speed, repeat: Infinity, ease: 'linear' }}>
                 <motion.div className={s.fill} initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 120, damping: 12, delay: 0.4 + i * 0.08 }}>
-                  <ShapedMedia media={[m]} shape="circle" hover={fx.hover} />
+                  <ShapedMedia media={[m]} shape="circle" hover={fx.hover} priority={false} sizes="120px" />
                 </motion.div>
               </motion.div>
             );
@@ -358,7 +360,7 @@ function CollageTile({ item, cfg, fx, i }) {
     <motion.div className={s.collageTile} style={{ left: `${cfg.l}%`, top: `${cfg.t}%`, width: `${cfg.w}%`, height: `${cfg.h}%`, zIndex: i === 4 ? 3 : 1, ...d }}
       initial={{ opacity: 0, y: 60, rotate: i % 2 ? 4 : -4 }} animate={{ opacity: 1, y: 0, rotate: 0 }}
       transition={{ type: 'spring', stiffness: 70, damping: 15, delay: 0.2 + i * 0.12 }}>
-      <ShapedMedia media={[item]} shape={fx.shape} hover={fx.hover} motion={fx.motion} />
+      <ShapedMedia media={[item]} shape={fx.shape} hover={fx.hover} motion={fx.motion} priority={i === 0 ? undefined : false} sizes="(min-width: 992px) 25vw, 50vw" />
     </motion.div>
   );
 }
@@ -383,7 +385,7 @@ function Bento({ slide, fx, media, product }) {
       {tiles.map((m, i) => (
         <motion.div key={i} className={`${s.bentoTile} ${s[`b${i}`]}`} initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.9 * fx.speed, ease, delay: 0.15 + i * 0.1 }}>
-          <ShapedMedia media={[m]} shape={fx.shape} hover={fx.hover} motion={fx.motion} />
+          <ShapedMedia media={[m]} shape={fx.shape} hover={fx.hover} motion={fx.motion} priority={i === 0 ? undefined : false} sizes="(min-width: 992px) 25vw, 50vw" />
         </motion.div>
       ))}
       {product && <div className={`${s.bentoTile} ${s.bP}`}><ProductChip product={product} className={s.bentoChip} delay={0.6} /></div>}
@@ -481,6 +483,19 @@ function MinimalType({ slide, fx }) {
   );
 }
 
+// 25 ─ 3D product showcase (models chosen in the admin; one WebGL canvas at a time)
+function Showcase3D({ slide, fx, media, product, reduce, inSection }) {
+  const { data } = useSite();
+  const products = data?.hero_3d || [];
+  if (!products.length) return <SplitShape slide={slide} fx={fx} media={media} product={product} reduce={reduce} inSection={inSection} />;
+  return (
+    <div className="pv-container">
+      <Hero3DShowcase products={products} interval={Math.max(6, fx.interval * 1.5)}
+        header={<HeroCopy slide={{ ...slide, cta_text: '', secondary_cta_text: '' }} fx={fx} inSection={inSection} compact />} />
+    </div>
+  );
+}
+
 export const HERO_LAYOUTS = {
   cinematic: Cinematic,
   centered: Centered,
@@ -506,6 +521,7 @@ export const HERO_LAYOUTS = {
   coverflow: CoverflowLayout,
   kinetic_type: KineticType,
   minimal_type: MinimalType,
+  showcase_3d: Showcase3D,
 };
 
 // Layouts whose media fills the whole hero (the header floats over them).

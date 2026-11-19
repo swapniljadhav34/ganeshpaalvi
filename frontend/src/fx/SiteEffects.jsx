@@ -1,10 +1,11 @@
 // Site-wide touches from the Site Design Studio: button shape & hover, custom cursor,
 // scroll progress bar. Mouse-only effects never appear on phones.
-import { motion, useMotionValue, useReducedMotion, useScroll, useSpring } from 'framer-motion';
+import { motion, useMotionValue, useScroll, useSpring } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { useSite } from '../context/SiteContext';
 import { hasFinePointer } from '../utils/device';
 import './fx.css';
+import { useCalm } from '../hooks/useCalm';
 
 function Cursor({ kind }) {
   const x = useMotionValue(-100);
@@ -55,7 +56,7 @@ function ScrollProgress() {
 
 export default function SiteEffects() {
   const { design } = useSite();
-  const reduce = useReducedMotion();
+  const reduce = useCalm();
   const fine = typeof window !== 'undefined' && hasFinePointer();
 
   useEffect(() => {

@@ -12,3 +12,5 @@ backend/.env
 backend/.cache/
 .env
 .DS_Store
+backend/private_media/
+backend/logs/

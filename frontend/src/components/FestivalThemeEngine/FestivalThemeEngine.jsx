@@ -13,20 +13,17 @@ const FONT_STACKS = {
   fraunces: "'Fraunces', 'Instrument Serif', Georgia, serif",
   tiro: "'Tiro Devanagari Hindi', 'Instrument Serif', Georgia, serif",
 };
-const FONT_URLS = {
-  fraunces: 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400&display=swap',
-  tiro: 'https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Hindi&display=swap',
+// Self-hosted festival fonts, downloaded only when a theme actually uses them.
+const FONT_LOADERS = {
+  fraunces: () => Promise.all([import('@fontsource/fraunces/300.css'), import('@fontsource/fraunces/400.css')]),
+  tiro: () => import('@fontsource/tiro-devanagari-hindi/400.css'),
 };
+const loaded = new Set();
 
-/** Load a display font only when a theme actually needs it. */
 function ensureFont(key) {
-  const href = FONT_URLS[key];
-  if (!href || document.querySelector(`link[data-font="${key}"]`)) return;
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = href;
-  link.dataset.font = key;
-  document.head.appendChild(link);
+  if (!FONT_LOADERS[key] || loaded.has(key)) return;
+  loaded.add(key);
+  FONT_LOADERS[key]().catch(() => loaded.delete(key));
 }
 
 /** Relative luminance — tells us whether the theme is light or dark. */
@@ -36,7 +33,7 @@ function isDark(hex = '#ffffff') {
 }
 
 export default function FestivalThemeEngine() {
-  const { theme } = useSite();
+  const { theme, motionPaused } = useSite();
   const canvasRef = useRef(null);
   const tokens = theme?.tokens;
 
@@ -66,7 +63,7 @@ export default function FestivalThemeEngine() {
   const effect = tokens?.ambient_effect;
   const enabled = theme?.ambient_enabled !== false;
   useEffect(() => {
-    if (!tokens || !enabled || !effect || effect === 'none') return undefined;
+    if (!tokens || !enabled || !effect || effect === 'none' || motionPaused) return undefined;
     if (prefersReducedMotion() || isLowEndDevice()) return undefined;
     const colors = {
       primary: tokens.primary,
@@ -75,7 +72,7 @@ export default function FestivalThemeEngine() {
       surfaceElevated: tokens.surface_elevated,
     };
     return startAmbient(canvasRef.current, effect, colors, { maxParticles: isMobileViewport() ? 30 : 100 });
-  }, [tokens, effect, enabled]);
+  }, [tokens, effect, enabled, motionPaused]);
 
   return <canvas ref={canvasRef} className={styles.canvas} aria-hidden="true" />;
 }

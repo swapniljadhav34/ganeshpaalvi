@@ -24,11 +24,17 @@ async function request(path, { method = 'GET', body, signal, keepalive } = {}) {
     throw new ApiError("We couldn't reach Paalvi. Please check your connection.", 0);
   }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const detail = typeof data.detail === 'string' ? data.detail : 'Something went wrong. Please try again.';
-    throw new ApiError(detail, res.status);
-  }
+  if (!res.ok) throw new ApiError(errorMessage(data), res.status);
   return data;
+}
+
+/** The API's message in plain words. Validation errors arrive as a list: show the first one. */
+export function errorMessage(data) {
+  if (typeof data?.detail === 'string') return data.detail;
+  if (Array.isArray(data?.detail) && data.detail[0]?.msg) {
+    return String(data.detail[0].msg).replace(/^Value error, /, '');
+  }
+  return 'Something went wrong. Please try again.';
 }
 
 /** Turn a filters object into ?a=1&b=2, skipping empty values. */

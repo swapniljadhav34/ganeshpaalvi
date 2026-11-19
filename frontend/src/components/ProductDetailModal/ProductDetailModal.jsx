@@ -1,7 +1,7 @@
 // Product modal over the catalog (route /p/<slug> with a "background" location).
 // Mobile: full-screen sheet you can swipe down to close. Desktop: large centred sheet.
 // react-bootstrap's Modal gives us focus-trapping, Escape-to-close and screen-reader semantics.
-import { motion, useDragControls, useReducedMotion } from 'framer-motion';
+import { motion, useDragControls } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Modal from 'react-bootstrap/Modal';
@@ -12,13 +12,14 @@ import { useSmoothScroll } from '../../hooks/useSmoothScroll';
 import { springs } from '../../theme/motion';
 import ProductDetail from './ProductDetail';
 import styles from './ProductDetailModal.module.css';
+import { useCalm } from '../../hooks/useCalm';
 
 export default function ProductDetailModal() {
   const { slug } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const isDesktop = useMediaQuery('(min-width: 992px)');
-  const reduce = useReducedMotion();
+  const reduce = useCalm();
   const dragControls = useDragControls();
   const lenis = useSmoothScroll();
   const [closing, setClosing] = useState(false);

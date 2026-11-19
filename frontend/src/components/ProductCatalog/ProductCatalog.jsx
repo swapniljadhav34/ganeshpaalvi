@@ -4,7 +4,7 @@
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { motion } from 'framer-motion';
 import { RefreshCw, SlidersHorizontal, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Offcanvas from 'react-bootstrap/Offcanvas';
 import { useSearchParams } from 'react-router-dom';
 import { useProducts } from '../../api/hooks';
@@ -50,12 +50,18 @@ function useColumns() {
 /** Plain grid for normal catalogs, windowed rows for very long lists. */
 function Grid({ items, columns, virtual }) {
   const listRef = useRef(null);
+  const [margin, setMargin] = useState(0);
   const rows = Math.ceil(items.length / columns);
+  // Distance from the top of the PAGE (not the nearest positioned parent) — measured after layout.
+  useLayoutEffect(() => {
+    if (!virtual || !listRef.current) return;
+    setMargin(listRef.current.getBoundingClientRect().top + window.scrollY);
+  }, [virtual, columns]);
   const virtualizer = useWindowVirtualizer({
     count: virtual ? rows : 0,
     estimateSize: () => 460,
     overscan: 3,
-    scrollMargin: listRef.current?.offsetTop ?? 0,
+    scrollMargin: margin,
   });
 
   if (!virtual) {
@@ -76,7 +82,7 @@ function Grid({ items, columns, virtual }) {
           style={{ position: 'absolute', top: 0, left: 0, right: 0, transform: `translateY(${row.start - virtualizer.options.scrollMargin}px)`, paddingBottom: 'var(--grid-gap)' }}
         >
           {items.slice(row.index * columns, row.index * columns + columns).map((p, i) => (
-            <ProductCard key={p.id} product={p} index={i} />
+            <ProductCard key={p.id} product={p} index={row.index * columns + i} />
           ))}
         </div>
       ))}
@@ -127,6 +133,17 @@ export default function ProductCatalog() {
     scrollTo('#catalog', { duration: 0.8 });
   };
 
+  // Arrow keys move between category tabs (standard tablist keyboard behaviour).
+  const chipKeys = (e) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+    const tabs = [...e.currentTarget.querySelectorAll('[role="tab"]')];
+    const at = tabs.indexOf(document.activeElement);
+    const next = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1
+      : (at + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    e.preventDefault();
+    tabs[next]?.focus();
+  };
+
   const panel = (
     <FilterPanel filters={filters} setFilter={setFilter} setMany={setMany} badges={data?.badges} options={data?.filters}
       onReset={reset} activeCount={activeCount} />
@@ -148,11 +165,11 @@ export default function ProductCatalog() {
 
         {/* Sticky category chips with an animated underline */}
         <div className={styles.chipsBar}>
-          <div className={styles.chips} role="tablist" aria-label="Categories">
+          <div className={styles.chips} role="tablist" aria-label="Categories" onKeyDown={chipKeys}>
             {[{ slug: '', name: 'All', depth: 0 }, ...cats].map((c) => {
               const on = (filters.category || '') === c.slug;
               return (
-                <button key={c.slug || 'all'} type="button" role="tab" aria-selected={on}
+                <button key={c.slug || 'all'} type="button" role="tab" aria-selected={on} tabIndex={on ? 0 : -1}
                   className={`${styles.chip} ${on ? styles.chipOn : ''} ${c.depth > 0 ? styles.chipSub : ''}`} onClick={() => pickCategory(c.slug)}>
                   {c.name}
                   {on && <motion.span layoutId="cat-underline" className={styles.underline} transition={springs.snappy} />}

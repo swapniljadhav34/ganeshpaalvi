@@ -13,6 +13,9 @@ openai>=1.50
 email-validator>=2.2
 gunicorn>=23
 psycopg[binary]>=3.2
+django-axes>=8,<10          # locks out password guessing on admin + Studio logins
+Brotli>=1.1                 # brotli-compressed JS/CSS via WhiteNoise
+sentry-sdk[django]>=2       # optional error alerts (SENTRY_DSN)
 # Optional extras (switched on by environment variables):
 django-redis>=5.4        # REDIS_URL  → shared cache + rate limits
 django-storages[s3]>=1.14  # USE_S3_MEDIA → Cloudflare R2 / S3 uploads

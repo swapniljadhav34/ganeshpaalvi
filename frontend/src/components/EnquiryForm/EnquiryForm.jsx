@@ -16,7 +16,7 @@ const BUYER_TYPES = [
   ['salon', 'Salon / Spa'], ['corporate', 'Corporate Gifting'], ['distributor', 'Distributor'],
 ];
 
-const empty = { name: '', phone: '', email: '', business_name: '', city: '', message: '', quantity: '', website: '' };
+const empty = { name: '', phone: '', email: '', business_name: '', city: '', message: '', quantity: '', website: '', consent: false };
 
 export default function EnquiryForm() {
   const { enquiry, closeEnquiry, whatsapp } = useSite();
@@ -41,8 +41,15 @@ export default function EnquiryForm() {
 
   async function submit(e) {
     e.preventDefault();
-    if (!form.phone && !form.email) {
-      setStatus({ state: 'error', error: 'Please add a phone number or email so we can reply.' });
+    const digits = form.phone.replace(/\D/g, '');
+    let problem = '';
+    if (!form.phone && !form.email) problem = 'Please add a phone number or email so we can reply.';
+    else if (form.phone && (digits.length < 10 || digits.length > 13)) problem = 'Please enter a valid mobile number (10 digits).';
+    else if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) problem = 'Please check the email address.';
+    else if (form.quantity && !/^\d+$/.test(form.quantity.trim())) problem = 'Quantity should be a whole number.';
+    else if (!form.consent) problem = 'Please tick the box so we may contact you about this enquiry.';
+    if (problem) {
+      setStatus({ state: 'error', error: problem });
       return;
     }
     setStatus({ state: 'sending', error: '' });
@@ -112,11 +119,15 @@ export default function EnquiryForm() {
                 <div className={styles.hp} aria-hidden="true"><label htmlFor="eq-web">Website</label><input id="eq-web" tabIndex={-1} autoComplete="off" value={form.website} onChange={set('website')} /></div>
               </div>
 
+              <label className={styles.consent}>
+                <input type="checkbox" checked={form.consent} onChange={(e) => setForm((f) => ({ ...f, consent: e.target.checked }))} />
+                <span>I agree to be contacted about this enquiry. We use your details only to reply — see our{' '}
+                  <a href="/privacy" target="_blank" rel="noopener">privacy policy</a>.</span>
+              </label>
               {status.error && <p className={styles.error} role="alert">{status.error}</p>}
               <button type="submit" className="pv-btn pv-btn--block" disabled={status.state === 'sending'}>
                 {status.state === 'sending' ? 'Sending…' : 'Send enquiry'}
               </button>
-              <p className={styles.fine}>We'll only use your details to reply to this enquiry.</p>
             </motion.form>
           )}
         </AnimatePresence>

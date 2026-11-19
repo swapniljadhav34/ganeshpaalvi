@@ -11,8 +11,11 @@ from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
 from django.utils import timezone
+from imagekit.models import ImageSpecField
+from imagekit.processors import ResizeToFit
 
 from . import design as D
+from . import validators as V
 from .utils import SingletonModel, compress_image_field, contrast_ratio
 
 hex_validator = RegexValidator(r"^#[0-9A-Fa-f]{6}$", "Please pick a colour (format like #8FC9B9).")
@@ -81,8 +84,10 @@ class DesignFields(models.Model):
 class MediaItemBase(models.Model):
     """One photo or video in a gallery. Add several and they rotate automatically."""
 
-    image = models.ImageField(upload_to="gallery/", blank=True, help_text="Photo (JPG/PNG/WebP — converted to WebP automatically).")
-    video = models.FileField(upload_to="gallery/", blank=True, help_text="Or a short MP4/WebM video (under 8 MB, no sound). "
+    img_800 = ImageSpecField(source="image", processors=[ResizeToFit(800, 1600)], format="WEBP", options={"quality": 78})
+    img_1600 = ImageSpecField(source="image", processors=[ResizeToFit(1600, 2400)], format="WEBP", options={"quality": 80})
+    image = models.ImageField(validators=V.IMAGE, upload_to="gallery/", blank=True, help_text="Photo (JPG/PNG/WebP — converted to WebP automatically).")
+    video = models.FileField(validators=V.VIDEO, upload_to="gallery/", blank=True, help_text="Or a short MP4/WebM video (under 8 MB, no sound). "
                                                                        "The photo above is used as its cover.")
     caption = models.CharField(max_length=120, blank=True, help_text="Optional small caption shown on the photo.")
     link = models.CharField(max_length=300, blank=True, help_text="Optional link when tapped, e.g. /p/bamboo-brush.")
@@ -108,11 +113,11 @@ class BrandSettings(SingletonModel):
     brand_name = models.CharField(max_length=60, default="Paalvi", help_text="Your brand name as shown on the website.")
     tagline = models.CharField(max_length=140, default="Everyday essentials, elevated.", blank=True,
                                help_text="A short line that sums up your brand.")
-    logo_light = models.FileField(upload_to="brand/", blank=True,
+    logo_light = models.FileField(validators=V.LOGO, upload_to="brand/", blank=True,
                                   help_text="Logo for dark backgrounds (usually white). PNG, WebP or SVG.")
-    logo_dark = models.FileField(upload_to="brand/", blank=True,
+    logo_dark = models.FileField(validators=V.LOGO, upload_to="brand/", blank=True,
                                  help_text="Logo for light backgrounds (usually dark). PNG, WebP or SVG.")
-    favicon = models.FileField(upload_to="brand/", blank=True, help_text="Tiny square icon shown in the browser tab (512×512 PNG is ideal).")
+    favicon = models.FileField(validators=V.FAVICON, upload_to="brand/", blank=True, help_text="Tiny square icon shown in the browser tab (512×512 PNG is ideal).")
 
     contact_email = models.EmailField(blank=True, default="hello@paalvi.in", help_text="Where customers can email you.")
     whatsapp_number = models.CharField(max_length=16, default="+91", validators=[whatsapp_validator],
@@ -136,11 +141,13 @@ class BrandSettings(SingletonModel):
                                                                "with the first one (choose the style in Site Design Studio).")
 
     footer_story = models.TextField(blank=True, help_text="A few warm lines about Paalvi shown in the footer.")
+    privacy_policy = models.TextField(blank=True, help_text="Your privacy policy, shown at /privacy and linked from every form. "
+                                                            "Leave a blank line between paragraphs. Empty = a sensible default.")
     default_seo_title = models.CharField(max_length=70, default="Paalvi — Everyday essentials, elevated", help_text="Title shown in Google results (keep under 60 characters).")
     default_seo_description = models.CharField(max_length=170, blank=True,
                                                default="Premium toothbrushes, toothpaste and oral care made for India. Retail and wholesale.",
                                                help_text="Description shown in Google results (keep under 160 characters).")
-    og_share_image = models.ImageField(upload_to="brand/", blank=True,
+    og_share_image = models.ImageField(validators=V.IMAGE, upload_to="brand/", blank=True,
                                        help_text="Picture shown when someone shares your site on WhatsApp/Facebook (1200×630 is ideal).")
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -199,7 +206,7 @@ class ThemePreset(models.Model):
                                     help_text="Font used for big headlines.")
     ambient_effect = models.CharField(max_length=10, choices=Ambient.choices, default=Ambient.NONE,
                                       help_text="Gentle background animation. Turned off automatically on slow phones.")
-    preview_image = models.ImageField(upload_to="themes/", blank=True, help_text="Optional picture to recognise this theme.")
+    preview_image = models.ImageField(validators=V.IMAGE, upload_to="themes/", blank=True, help_text="Optional picture to recognise this theme.")
     order = models.PositiveIntegerField(default=0, db_index=True)
 
     class Meta:
@@ -345,9 +352,13 @@ class HeroSlide(ScheduleMixin, DesignFields):
                                                         help_text="How much soft veil sits over the media so words stay readable (0–90).")
     height = models.CharField(max_length=6, choices=Height.choices, default=Height.FULL)
 
-    video_desktop = models.FileField(upload_to="hero/", blank=True, help_text="MP4/WebM for computers. Under 8 MB, 10–20 seconds, no sound.")
-    video_mobile = models.FileField(upload_to="hero/", blank=True, help_text="Lighter MP4 for phones. Under 3 MB, vertical or square.")
-    poster_image = models.ImageField(upload_to="hero/", blank=True, help_text="Main picture (also shown while the video loads and on slow phones).")
+    video_desktop = models.FileField(validators=V.VIDEO, upload_to="hero/", blank=True, help_text="MP4/WebM for computers. Under 8 MB, 10–20 seconds, no sound.")
+    video_mobile = models.FileField(validators=V.VIDEO, upload_to="hero/", blank=True, help_text="Lighter MP4 for phones. Under 3 MB, vertical or square.")
+    poster_800 = ImageSpecField(source="poster_image", processors=[ResizeToFit(800, 1600)], format="WEBP", options={"quality": 78})
+    poster_1600 = ImageSpecField(source="poster_image", processors=[ResizeToFit(1600, 2400)], format="WEBP", options={"quality": 80})
+    poster_image = models.ImageField(validators=V.IMAGE, upload_to="hero/", blank=True, help_text="Main picture (also shown while the video loads and on slow phones).")
+    media_alt = models.CharField(max_length=160, blank=True, verbose_name="Picture description",
+                                 help_text="Describe the main picture for blind visitors and Google. Leave empty if it is purely decorative.")
 
     cta_text = models.CharField(max_length=40, default="Explore Essentials", blank=True, help_text="Main button label (empty = no button).")
     cta_link = models.CharField(max_length=300, default="#catalog", help_text=LINK_HELP)
@@ -422,8 +433,12 @@ class PageSection(ScheduleMixin, DesignFields):
     eyebrow = models.CharField(max_length=60, blank=True, help_text="Tiny label above the title, e.g. 'OUR STORY'.")
     title = models.CharField(max_length=140, blank=True, help_text="Section headline.")
     body = models.TextField(blank=True, help_text="Main text. Leave a blank line between paragraphs.")
-    image = models.ImageField(upload_to="sections/", blank=True, help_text="Main picture for this section.")
-    video = models.FileField(upload_to="sections/", blank=True, help_text="Optional MP4 video (under 8 MB).")
+    img_800 = ImageSpecField(source="image", processors=[ResizeToFit(800, 1600)], format="WEBP", options={"quality": 78})
+    img_1600 = ImageSpecField(source="image", processors=[ResizeToFit(1600, 2400)], format="WEBP", options={"quality": 80})
+    image = models.ImageField(validators=V.IMAGE, upload_to="sections/", blank=True, help_text="Main picture for this section.")
+    media_alt = models.CharField(max_length=160, blank=True, verbose_name="Picture description",
+                                 help_text="Describe the main picture for blind visitors and Google. Leave empty if decorative.")
+    video = models.FileField(validators=V.VIDEO, upload_to="sections/", blank=True, help_text="Optional MP4 video (under 8 MB).")
     cta_text = models.CharField(max_length=40, blank=True, help_text="Button label (optional).")
     cta_link = models.CharField(max_length=300, blank=True, help_text=LINK_HELP)
     background_style = models.CharField(max_length=20, choices=Background.choices, default=Background.SURFACE)

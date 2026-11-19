@@ -1,6 +1,6 @@
 // A photo, video or rotating gallery inside any admin-chosen shape, with optional
 // ongoing motion (float, Ken Burns, morph…) and hover effect.
-import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import { useRef } from 'react';
 import { isLowEndDevice } from '../utils/device';
 import { useRegistry, useShapeStyle } from './FxContext';
@@ -8,6 +8,7 @@ import HoverFx from './HoverFx';
 import MediaGallery, { FRAMED_STYLES } from './MediaGallery';
 import MediaItem from './MediaItem';
 import './fx.css';
+import { useCalm } from '../hooks/useCalm';
 
 export { MediaItem };
 
@@ -27,9 +28,9 @@ const MOTION = {
  */
 export default function ShapedMedia({
   media = [], shape = 'rounded', motion: motionKind = 'none', hover = 'none', gallery = 'fade', interval = 5,
-  className = '', style, priority = false, speed = 1, children,
+  className = '', style, priority, speed = 1, sizes, children,
 }) {
-  const reduce = useReducedMotion();
+  const reduce = useCalm();
   const { shapes } = useRegistry();
   const shapeCss = useShapeStyle(shape);
   const ref = useRef(null);
@@ -55,7 +56,7 @@ export default function ShapedMedia({
   const inner = multi ? (
     <MediaGallery items={items} style={gallery} interval={interval} priority={priority} speed={speed} kenBurns={kenBurns} />
   ) : (
-    <MediaItem item={items[0]} priority={priority} kenBurns={kenBurns} />
+    <MediaItem item={items[0]} priority={priority} kenBurns={kenBurns} sizes={sizes} />
   );
 
   const box = (

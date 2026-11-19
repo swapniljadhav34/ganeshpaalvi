@@ -13,12 +13,29 @@ from django.core.files.base import ContentFile
 from django.db import models
 from PIL import Image, ImageOps
 
-BOOTSTRAP_CACHE_KEY = "paalvi:bootstrap:v2"
+BOOTSTRAP_CACHE_KEY = "paalvi:bootstrap:v3"
+CATALOG_VERSION_KEY = "paalvi:catalog-version"
+
+
+def catalog_version():
+    """A number that changes whenever anything visitors see changes (part of every cache key)."""
+    v = cache.get(CATALOG_VERSION_KEY)
+    if v is None:
+        v = 1
+        cache.add(CATALOG_VERSION_KEY, v, timeout=None)
+    return v
 
 
 def clear_site_cache():
-    """Forget cached homepage data so visitors see admin changes right away."""
+    """Forget cached homepage + product pages so visitors see admin changes right away."""
     cache.delete(BOOTSTRAP_CACHE_KEY)
+    try:
+        cache.incr(CATALOG_VERSION_KEY)
+    except ValueError:
+        cache.set(CATALOG_VERSION_KEY, 2, timeout=None)
+
+
+bump_catalog_version = clear_site_cache
 
 
 class SingletonModel(models.Model):

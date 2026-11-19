@@ -191,6 +191,27 @@ def fallback_reply(products, intent, brand):
     return " ".join(parts)
 
 
+_client = None
+
+
+def ai_client():
+    """One shared client (connection pooling); no retries so a slow provider can't hold a worker for long."""
+    global _client
+    if _client is None:
+        from openai import OpenAI
+
+        _client = OpenAI(base_url=settings.AI_BASE_URL, api_key=settings.AI_API_KEY or "ollama",
+                         timeout=settings.AI_TIMEOUT_SECONDS, max_retries=0)
+    return _client
+
+
+def sign_reply(text):
+    """Signature for an assistant reply, so the browser can't invent earlier 'assistant' turns."""
+    from django.core.signing import Signer
+
+    return Signer(salt="paalvi-guide").signature((text or "")[:2000])
+
+
 def ask_guide(request, message, history=None, tier="retail"):
     cfg = AIAssistantConfig.load()
     brand = BrandSettings.load()
@@ -200,11 +221,7 @@ def ask_guide(request, message, history=None, tier="retail"):
 
     if settings.AI_API_KEY or "localhost" in settings.AI_BASE_URL or "127.0.0.1" in settings.AI_BASE_URL:
         try:
-            from openai import OpenAI
-
-            client = OpenAI(base_url=settings.AI_BASE_URL, api_key=settings.AI_API_KEY or "ollama",
-                            timeout=settings.AI_TIMEOUT_SECONDS, max_retries=1)
-            resp = client.chat.completions.create(
+            resp = ai_client().chat.completions.create(
                 model=settings.AI_MODEL,
                 messages=build_messages(cfg, brand, message, history, products, intent, tier),
                 temperature=0.4,

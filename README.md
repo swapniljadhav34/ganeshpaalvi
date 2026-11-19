@@ -2,9 +2,9 @@
 
 A premium, mobile-first brand showroom and retail + wholesale catalog for oral care and daily essentials.
 
-- **backend/**: Django 5 + Django Ninja API + Unfold admin ("Paalvi Studio")
-- **frontend/**: React 18 + Vite, Framer Motion, TanStack Query
-- **BRIEF.md**: brand and design brief
+- **backend/**: Django 5 + Django Ninja API + Unfold admin (site settings) + `ops` app (inventory, production, accounting, analytics, staff roles)
+- **frontend/**: React 18 + Vite storefront, plus **Paalvi Studio** at `/studio` (role-based staff app, loaded only for staff)
+- **BRIEF.md**: brand and design brief · **DEPLOY.md**: going live on Oracle, AWS, Hostinger, Docker or Heroku
 
 Everything visitors see comes from the admin: text, photos, videos, prices, themes and homepage sections.
 
@@ -20,11 +20,13 @@ cd backend
 python -m venv .venv
 .venv\Scripts\activate          # Mac/Linux: source .venv/bin/activate
 pip install -r requirements.txt
-copy .env.example .env          # Mac/Linux: cp .env.example .env
+echo DJANGO_DEBUG=true> .env    # development mode (production is the default and needs a secret key)
 python manage.py migrate
 python manage.py seed_themes    # 24 theme presets
 python manage.py seed_demo      # optional: demo products, sections & photos
+python manage.py seed_ops       # optional: demo stock, batches, invoices, traffic, 3D models (--staff adds demo employees)
 python manage.py createsuperuser
+python manage.py test           # 27 tests
 python manage.py runserver      # http://127.0.0.1:8000/admin/
 
 # 2. Frontend (new terminal)
@@ -35,7 +37,7 @@ npm run dev                     # http://localhost:5173
 
 In development, Vite forwards `/api` and `/media` to Django, so there's nothing else to configure.
 
-## Owner guide (Paalvi Studio, `/admin/`)
+## Owner guide (site admin, `/admin/` — or your private ADMIN_URL)
 
 | Sidebar tab | What you do there |
 |---|---|
@@ -61,6 +63,8 @@ Where the catalog appears on the homepage: right after the "Featured Collection"
 | `GET /api/products/{slug}` | Full detail + related + "complete your routine" |
 | `POST /api/ai-guide` | RAG over the catalog (top 8 matching products only), with safety rules. 15/min per IP |
 | `POST /api/inquiry` | Lead capture with a honeypot. 5/min per IP |
+| `POST /api/analytics/track` | Cookie-free page-view beacon (no IPs stored) |
+| `/api/staff/...` | Paalvi Studio API: session login + CSRF, role permissions on every endpoint |
 | `/sitemap.xml`, `/robots.txt` | Generated automatically |
 
 Interactive API docs: `/api/docs` (only while `DJANGO_DEBUG=true`).
@@ -84,26 +88,30 @@ The guide works with any OpenAI-compatible provider: set `AI_BASE_URL`, `AI_API_
 
 Without a key, or if the provider is down, the guide still answers. It falls back to a helpful reply that suggests real matching products. It never invents products or prices, makes no medical claims, and suggests a dentist when a visitor mentions pain, bleeding or swelling.
 
-## Deploying to production
+## Paalvi Studio (`/studio`) — for the team
 
-**Option A — one server (simplest).** Django serves the API, the admin and the built React app.
-```bash
-cd frontend && npm ci && npm run build          # creates frontend/dist
-cd ../backend
-# .env: DJANGO_DEBUG=false, DJANGO_SECRET_KEY=..., DATABASE_URL=postgres://..., SITE_URL=https://paalvi.in
-python manage.py migrate && python manage.py collectstatic --noinput
-gunicorn config.wsgi --workers 3 --timeout 60
-```
-`/p/<slug>` is rendered by Django with real Open Graph tags (product photo, name, ₹ price), so WhatsApp and Facebook previews look right even though the site is a React app. If your media lives on disk, have your web server (e.g. nginx) serve `/media/`, or turn on R2 (below).
+Staff sign in at **`/studio`**. Each role sees only its own tabs, and the server checks every request (hiding a tab is never the security).
 
-**Option B — split hosting.** Put the frontend on a static host (Vercel, Netlify, Cloudflare Pages) with `VITE_API_URL=https://api.paalvi.in`, and the backend on Render, Railway or a VPS. To keep share previews working, route `/p/*`, `/sitemap.xml` and `/robots.txt` to Django (a rewrite on the static host), and add an SPA fallback to `index.html` for everything else.
+| Role | Tabs |
+|---|---|
+| Super admin (owner) | Everything + Team & settings + the site admin |
+| Accountant | Accounting |
+| Inventory manager | Inventory (adjust, batches/expiry), Production (view) |
+| Production manager | Production (create, assign, any batch), Inventory (view) |
+| Operations employee | Inventory (adjust), Production (their assigned batches), Orders & enquiries |
+| Catalog & media employee | Catalog & 3D, Inventory (view) |
+| Wholesale manager | Orders & enquiries, Inventory (view) |
 
-**Production checklist**
-- PostgreSQL (`DATABASE_URL`). Migration `catalog.0002` enables `pg_trgm` for fast, typo-tolerant search.
-- Optional `REDIS_URL`. Without it, a file cache in `backend/.cache` is used; it is shared by all workers on one server.
-- Optional Cloudflare R2 for photos and videos: `USE_S3_MEDIA=true` plus the `S3_*` variables.
-- `LEAD_NOTIFY_EMAILS` + SMTP settings for new-lead emails.
-- CORS is locked to `https://paalvi.in` and `https://www.paalvi.in` (localhost is added only in debug).
+- **Inventory**: stock per SKU (product or variant) with reserved/available, batch & expiry, quick ± adjustments (reason required). Every change runs in a locked database transaction and is written to a permanent movement log. Alerts raise and clear themselves: *Out of stock*, *Low stock*, *Expiring soon*, *Production needed*. The website's stock label follows real stock. Owner-only: movement log, alert levels, settings, CSV export.
+- **Production**: Kanban from *Planned* to *Completed*. Completing a batch adds its good pieces to stock exactly once and clears flags. Batches can be planned straight from a flagged item.
+- **Accounting** (owner + accountant only): GST invoices (CGST/SGST or IGST, gap-free numbers per financial year), payments (UPI/bank/cash/card, no overpaying), expenses with **private** receipts, revenue vs expenses, receivables, GST payable estimate, CSV exports.
+- **Traffic** (owner): cookie-free visit counts, unique sessions, top products, mobile vs desktop, retail vs wholesale, daily trend.
+- **Catalog & 3D**: upload `.glb` models and posters, choose which products spin in the homepage **3D showcase** hero (hero layout #25, also usable as an Animated Hero Banner section).
+- **Team**: add staff with a role (one-time password), change roles, block access, reset passwords.
+
+## Deploying
+
+See **[DEPLOY.md](DEPLOY.md)** — Oracle Cloud (free), AWS, Hostinger VPS, any Docker host, or Heroku/Render — plus the production checklist.
 
 ## Performance notes
 

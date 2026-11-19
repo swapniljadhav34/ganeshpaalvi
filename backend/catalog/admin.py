@@ -157,7 +157,7 @@ class ProductAdmin(ModelAdmin, ImportExportModelAdmin):
     list_display_links = ["cover", "title_block"]
     list_editable = ["is_active"]
     list_filter = [
-        "is_active", "stock_status", "category", "is_featured", "is_bestseller", "is_new_arrival", "badges",
+        "is_active", "stock_status", "category", "is_featured", "is_bestseller", "is_new_arrival", "is_hero_3d_featured", "badges",
         ("retail_price", RangeNumericFilter),
     ]
     list_filter_submit = True
@@ -176,6 +176,9 @@ class ProductAdmin(ModelAdmin, ImportExportModelAdmin):
         ("Basics", {"fields": ("title", "subtitle", "category", ("sku", "ean"), "slug", "site_link")}),
         ("Prices (₹, incl. all taxes)", {"fields": (("mrp", "retail_price", "discount_percent"), ("wholesale_price", "moq"))}),
         ("Story", {"fields": ("description", "key_benefits", "how_to_use", "demo_video")}),
+        ("3D model", {"fields": ("model_3d", "model_poster", ("is_hero_3d_featured", "hero_3d_order")),
+                      "description": "Upload a .glb file (binary glTF from Blender or a 3D scanning app). Visitors can rotate "
+                                     "and zoom it on the product page; tick 'Show in the 3D hero' to feature it on the homepage."}),
         ("Honest ingredients", {"fields": ("key_ingredients", "ingredients_text", "badges", "suitable_for")}),
         ("Pack details", {"fields": (("net_quantity", "unit"), "shelf_life", "country_of_origin", "stock_status", "tags")}),
         ("Show on website", {"fields": (("is_active", "is_featured"), ("is_new_arrival", "is_bestseller"), "order")}),

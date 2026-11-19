@@ -61,3 +61,8 @@
 .giantMarquee { text-align: left; }
 .giantTrack { display: inline-block; animation: gmarquee 40s linear infinite; }
 @keyframes gmarquee { to { transform: translateX(-50%); } }
+.legalLinks { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+.legalLinks a, .legalLinks button {
+  padding: 6px 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; text-decoration: underline;
+  text-underline-offset: 3px; min-height: 32px;
+}

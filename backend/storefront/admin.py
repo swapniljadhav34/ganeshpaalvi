@@ -65,6 +65,8 @@ class BrandSettingsAdmin(SingletonAdmin):
         ("Business & legal details", {"fields": ("registered_address", "google_maps_link", "gstin", "manufacturer_details",
                                                  "marketer_details", "customer_care_details"), "classes": ["tab"]}),
         ("Footer & Google", {"fields": ("footer_story", "default_seo_title", "default_seo_description", "og_share_image")}),
+        ("Privacy policy", {"fields": ("privacy_policy",), "classes": ["tab"],
+                            "description": "Shown at /privacy and linked from every enquiry form."}),
     )
 
 
@@ -275,7 +277,7 @@ class HeroSlideAdmin(LivePreviewMixin, MediaPreviewMixin, ModelAdmin):
         ("Words & buttons", {"classes": ["tab"], "fields": (
             "eyebrow", "headline", "subheadline", ("cta_text", "cta_link"), ("secondary_cta_text", "secondary_cta_link"),
             ("show_product", "product"))}),
-        ("Main video & picture", {"classes": ["tab"], "fields": ("poster_image", "video_desktop", "video_mobile"),
+        ("Main video & picture", {"classes": ["tab"], "fields": ("poster_image", "media_alt", "video_desktop", "video_mobile"),
                                   "description": "The main media. Add more photos/videos in the “Extra photos & videos” tab — "
                                                  "they rotate in the style you pick under Shape & animation."}),
         DESIGN_FIELDSET,
@@ -316,7 +318,7 @@ class PageSectionAdmin(LivePreviewMixin, MediaPreviewMixin, ModelAdmin):
     fieldsets = (
         ("Section", {"classes": ["tab"], "fields": ("section_type", "background_style", "hero_layout", "media_position")}),
         ("Words & button", {"classes": ["tab"], "fields": ("eyebrow", "title", "body", ("cta_text", "cta_link"))}),
-        ("Main media", {"classes": ["tab"], "fields": ("image", "video"),
+        ("Main media", {"classes": ["tab"], "fields": ("image", "media_alt", "video"),
                         "description": "Add more photos/videos in the “Extra photos & videos” tab — they rotate automatically."}),
         DESIGN_FIELDSET,
         ("Extra content", {"classes": ["tab"], "fields": ("category", "items"), "description": SECTION_GUIDE}),

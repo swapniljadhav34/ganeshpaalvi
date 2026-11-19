@@ -1,6 +1,6 @@
 // Shared wrapper for every homepage section: background, anchor id, the section's own
 // shape/animation choices (FxProvider), mouse effect, decor, shaped top edge, title and CTA.
-import { useReducedMotion } from 'framer-motion';
+
 import { useMemo } from 'react';
 import { useSite } from '../../context/SiteContext';
 import AnimatedText from '../../fx/AnimatedText';
@@ -12,6 +12,7 @@ import ShapedMedia from '../../fx/ShapedMedia';
 import { linkHref, useLinkAction } from '../../utils/useLinkAction';
 import Reveal from '../ui/Reveal';
 import styles from './Sections.module.css';
+import { useCalm } from '../../hooks/useCalm';
 
 const ANCHORS = { routine_builder: 'ritual', for_business: 'business', faq: 'faq' };
 const BG_VAR = {
@@ -79,7 +80,7 @@ export function SectionMedia({ section, className = '', items, fallback = true, 
 
 export default function SectionShell({ section, children, className = '', tight = false, ...rest }) {
   const { design } = useSite();
-  const reduce = useReducedMotion();
+  const reduce = useCalm();
   const fx = useMemo(() => resolveFx(section, design), [section, design]);
   const bg = styles[`bg_${section.background}`] || '';
   return (

@@ -1,10 +1,10 @@
 // Footer: brand story, admin-editable columns (own links, automatic categories, automatic
 // contact details), legal small print and the big wordmark — its text, size and animation
 // are chosen in Site Design Studio.
-import { motion, useMotionValue, useReducedMotion, useScroll, useTransform } from 'framer-motion';
+import { motion, useMotionValue, useScroll, useTransform } from 'framer-motion';
 import { Mail, MapPin, Phone } from 'lucide-react';
 import { useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useSite } from '../../context/SiteContext';
 import Decor from '../../fx/Decor';
 import Divider from '../../fx/Divider';
@@ -14,6 +14,7 @@ import { useLinkProps } from '../../utils/useLinkAction';
 import { FacebookIcon, InstagramIcon, WhatsAppIcon, XIcon } from '../ui/BrandIcons';
 import Icon from '../ui/Icon';
 import styles from './Footer.module.css';
+import { useCalm } from '../../hooks/useCalm';
 
 const FOOTER_BG = {
   ink: 'var(--color-ink)', light: 'var(--color-surface)', primary: 'var(--color-primary-soft)',
@@ -84,7 +85,7 @@ function FollowLetter({ ch, i, count }) {
 
 function GiantWordmark({ text, size, anim }) {
   const ref = useRef(null);
-  const reduce = useReducedMotion();
+  const reduce = useCalm();
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end end'] });
   const y = useTransform(scrollYProgress, [0, 1], ['40%', '0%']);
   if (!text || size === 'hidden') return null;
@@ -127,7 +128,7 @@ function GiantWordmark({ text, size, anim }) {
 }
 
 export default function Footer() {
-  const { brand, data, design } = useSite();
+  const { brand, data, design, motionPaused, setMotionPaused } = useSite();
   if (!brand) return null;
   const year = new Date().getFullYear();
   const columns = data?.footer?.length ? data.footer : [{ title: 'Shop', kind: 'categories', links: [] }, { title: 'Talk to us', kind: 'contact', links: [] }];
@@ -157,6 +158,12 @@ export default function Footer() {
 
         <div className={styles.legal}>
           <p>© {year} {brand.name}. {design.footer_legal_text}</p>
+          <p className={styles.legalLinks}>
+            <Link to="/privacy">Privacy policy</Link>
+            <button type="button" aria-pressed={motionPaused} onClick={() => setMotionPaused(!motionPaused)}>
+              {motionPaused ? 'Play animations' : 'Pause animations'}
+            </button>
+          </p>
           <p className={styles.legalMeta}>
             {brand.gstin && <span>GSTIN {brand.gstin}</span>}
             {brand.manufacturer && <span>{brand.manufacturer}</span>}

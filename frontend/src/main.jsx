@@ -1,14 +1,17 @@
 // Entry point: wires up data caching, SEO tags, routing, smooth scroll and site-wide state.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MotionConfig } from 'framer-motion';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { HelmetProvider } from 'react-helmet-async';
 import { BrowserRouter } from 'react-router-dom';
 
-// Bootstrap: ONLY the grid + utilities. All visual styling is ours.
-import 'bootstrap/dist/css/bootstrap-grid.min.css';
-import 'bootstrap/dist/css/bootstrap-utilities.min.css';
+// Self-hosted fonts (no third-party requests, no render-blocking stylesheet).
+import '@fontsource/instrument-serif/400.css';
+import '@fontsource/instrument-serif/400-italic.css';
+import '@fontsource/manrope/400.css';
+import '@fontsource/manrope/500.css';
+import '@fontsource/manrope/600.css';
+import '@fontsource/manrope/700.css';
 import './theme/tokens.css';
 import './theme/global.css';
 
@@ -30,14 +33,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <HelmetProvider>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          {/* reducedMotion="user" makes every Framer animation respect the OS setting */}
-          <MotionConfig reducedMotion="user">
-            <SiteProvider>
-              <SmoothScrollProvider>
-                <App />
-              </SmoothScrollProvider>
-            </SiteProvider>
-          </MotionConfig>
+          <SiteProvider>
+            <SmoothScrollProvider>
+              <App />
+            </SmoothScrollProvider>
+          </SiteProvider>
         </BrowserRouter>
       </QueryClientProvider>
     </HelmetProvider>

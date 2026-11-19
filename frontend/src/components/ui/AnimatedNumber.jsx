@@ -1,11 +1,12 @@
 // Smoothly counts between numbers (used for prices and MOQ totals).
-import { animate, useReducedMotion } from 'framer-motion';
+import { animate } from 'framer-motion';
 import { useEffect, useRef } from 'react';
+import { useCalm } from '../../hooks/useCalm';
 
 export default function AnimatedNumber({ value, format = (v) => v }) {
   const ref = useRef(null);
   const prev = useRef(value);
-  const reduce = useReducedMotion();
+  const reduce = useCalm();
 
   useEffect(() => {
     const node = ref.current;

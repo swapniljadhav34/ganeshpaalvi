@@ -1,9 +1,10 @@
 // Headlines that animate in one of 14 admin-chosen styles. Screen readers always get the
 // plain sentence (aria-label); the animated pieces are hidden from them.
-import { motion, useInView, useReducedMotion } from 'framer-motion';
+import { motion, useInView } from 'framer-motion';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { ease } from '../theme/motion';
 import './fx.css';
+import { useCalm } from '../hooks/useCalm';
 
 const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
@@ -57,7 +58,7 @@ export default function AnimatedText({
   text = '', as: Tag = 'h2', kind = 'rise_words', className = '', delay = 0, speed = 1, trigger = 'view', style,
 }) {
   const ref = useRef(null);
-  const reduce = useReducedMotion();
+  const reduce = useCalm();
   const start = useStart(trigger, ref);
   if (!text) return null;
   const k = reduce ? 'none' : kind;

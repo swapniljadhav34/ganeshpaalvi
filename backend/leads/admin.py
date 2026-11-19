@@ -20,8 +20,14 @@ class LeadResource(resources.ModelResource):
     class Meta:
         model = LeadInquiry
         fields = ["created_at", "name", "phone", "email", "business_name", "buyer_type", "city", "product", "variant",
-                  "package", "tier", "quantity", "source", "status", "message", "notes"]
+                  "package", "tier", "quantity", "source", "status", "message", "notes", "consent_at"]
         export_order = fields
+
+    def export_field(self, field, instance, **kwargs):
+        # Visitors type these values; a leading = + - @ would run as a formula when opened in Excel.
+        from ops.accounting import safe_cell
+
+        return safe_cell(super().export_field(field, instance, **kwargs))
 
 
 STATUS_COLORS = {"New": "info", "Contacted": "warning", "Quoted": "primary", "Won": "success", "Lost": "danger"}

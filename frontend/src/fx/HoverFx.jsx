@@ -1,15 +1,16 @@
 // Hover / mouse effects chosen in the admin: lift, 3D tilt, magnetic, zoom, glow, shine,
 // rotate, spotlight, press. Touch devices get a gentle press instead of mouse-only effects.
-import { motion, useMotionTemplate, useMotionValue, useReducedMotion, useSpring } from 'framer-motion';
+import { motion, useMotionTemplate, useMotionValue, useSpring } from 'framer-motion';
 import { useRef } from 'react';
 import { hasFinePointer } from '../utils/device';
 import './fx.css';
+import { useCalm } from '../hooks/useCalm';
 
 const SPRING = { stiffness: 220, damping: 20 };
 
 export default function HoverFx({ kind = 'lift', className = '', children, strength = 1, style, ...rest }) {
   const ref = useRef(null);
-  const reduce = useReducedMotion();
+  const reduce = useCalm();
   const fine = useRef(typeof window !== 'undefined' && hasFinePointer());
   const rx = useSpring(useMotionValue(0), SPRING);
   const ry = useSpring(useMotionValue(0), SPRING);

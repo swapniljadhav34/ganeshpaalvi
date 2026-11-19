@@ -1,10 +1,11 @@
 // Decorative animated background shapes (blob, orb, rings, dots, waves, arch, bubbles,
 // grid, sparkles, leaves). They drift with the mouse when the block has a pointer effect.
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useMemo } from 'react';
 import { isLowEndDevice } from '../utils/device';
 import { useDepth } from './PointerArea';
 import './fx.css';
+import { useCalm } from '../hooks/useCalm';
 
 function seeded(n, f) {
   return Array.from({ length: n }, (_, i) => f(i, ((i * 9301 + 49297) % 233280) / 233280));
@@ -69,7 +70,7 @@ function Shapes({ kind }) {
 }
 
 export default function Decor({ kind = 'none', className = '', depth = 24 }) {
-  const reduce = useReducedMotion();
+  const reduce = useCalm();
   const { x, y } = useDepth(depth);
   if (!kind || kind === 'none' || (typeof window !== 'undefined' && isLowEndDevice() && ['bubbles', 'sparkles', 'leaves'].includes(kind))) return null;
   return (

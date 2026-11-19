@@ -24,3 +24,7 @@
 .fine { font-size: 0.75rem; color: var(--color-text-muted); text-align: center; }
 .done { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; padding: 24px 0; }
 .doneIcon { color: var(--color-primary-ink); }
+
+.consent { display: flex; gap: 10px; align-items: flex-start; font-size: 0.82rem; color: var(--color-text-muted); line-height: 1.45; cursor: pointer; }
+.consent input { width: 20px; height: 20px; margin-top: 1px; flex-shrink: 0; accent-color: var(--color-primary-ink); }
+.consent a { color: var(--color-text); }

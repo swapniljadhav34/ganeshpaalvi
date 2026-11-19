@@ -1,6 +1,6 @@
 // Building blocks shared by all 24 hero layouts: the words + buttons, the floating
 // product chip, and full-bleed background media.
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSite } from '../../context/SiteContext';
 import AnimatedText from '../../fx/AnimatedText';
@@ -11,6 +11,7 @@ import { linkHref, useLinkAction } from '../../utils/useLinkAction';
 import { WhatsAppIcon } from '../ui/BrandIcons';
 import Price from '../ui/Price';
 import s from './Hero.module.css';
+import { useCalm } from '../../hooks/useCalm';
 
 export function HeroCopy({ slide, fx, align = 'left', inSection = false, className = '', compact = false, hideHeadline = false, delay = 0 }) {
   const { brand } = useSite();
@@ -92,8 +93,8 @@ export function ProductChip({ product, className = '', delay = 1, style }) {
 }
 
 /** Full-bleed background: one photo/video, or a rotating gallery when several are added. */
-export function BgMedia({ media, fx, priority = true, forceStyle }) {
-  const reduce = useReducedMotion();
+export function BgMedia({ media, fx, priority, forceStyle }) {
+  const reduce = useCalm();
   if (!media?.length) return <div className={s.gradient} />;
   if (media.length === 1) {
     return <MediaItem item={media[0]} priority={priority} kenBurns={!reduce && fx.motion === 'ken_burns'} />;
