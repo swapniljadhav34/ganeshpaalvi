@@ -21,7 +21,7 @@ async function request(path, { method = 'GET', body, signal, keepalive } = {}) {
     });
   } catch (err) {
     if (err.name === 'AbortError') throw err;
-    throw new ApiError("We couldn't reach Paalvi. Please check your connection.", 0);
+    throw new ApiError("We couldn't reach the shop. Please check your connection.", 0);
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(errorMessage(data), res.status);
@@ -54,3 +54,6 @@ export const fetchProducts = (params, { signal } = {}) => request(`/products${to
 export const fetchProduct = (slug, { signal } = {}) => request(`/products/${encodeURIComponent(slug)}`, { signal });
 export const askGuide = (payload) => request('/ai-guide', { method: 'POST', body: payload });
 export const sendInquiry = (payload) => request('/inquiry', { method: 'POST', body: payload, keepalive: true });
+export const trackOrder = (number, phone) => request(`/orders/track${toQuery({ number, phone })}`);
+export const trackOrderByLink = (token, { signal } = {}) => request(`/orders/track/${encodeURIComponent(token)}`, { signal });
+export const receiptUrl = (token, size = 'a4') => `${BASE}/api/orders/track/${encodeURIComponent(token)}/receipt?size=${size}`;

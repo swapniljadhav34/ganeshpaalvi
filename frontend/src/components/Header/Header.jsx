@@ -11,6 +11,7 @@ import { useScrollDirection } from '../../hooks/useScrollDirection';
 import { readStore, writeStore } from '../../utils/storage';
 import { useLinkProps } from '../../utils/useLinkAction';
 import SearchPanel from './SearchPanel';
+import { LanguagePicker, useT } from '../../i18n/I18n';
 import TierToggle from './TierToggle';
 import styles from './Header.module.css';
 import { useCalm } from '../../hooks/useCalm';
@@ -84,10 +85,10 @@ function AnnouncementBar({ announcement, style }) {
 export function Wordmark({ brand, onDark = false, size, spacing }) {
   const logo = onDark ? brand?.logo_light : brand?.logo_dark;
   const px = Number(size) || 22;
-  if (logo) return <img src={logo} alt={brand?.name || 'Paalvi'} className={styles.logoImg} style={{ height: Math.round(px * 1.3) }} />;
+  if (logo) return <img src={logo} alt={brand?.name || ''} className={styles.logoImg} style={{ height: Math.round(px * 1.3) }} />;
   return (
     <span className={styles.wordmark} style={{ fontSize: `${px}px`, letterSpacing: spacing }}>
-      {(brand?.name || 'Paalvi').toUpperCase()}
+      {(brand?.name || '').toUpperCase()}
     </span>
   );
 }
@@ -136,12 +137,13 @@ export default function Header() {
     return true;
   });
 
+  const t = useT();
   const style = design.header_style || 'floating_pill';
   const hidden = design.header_scroll === 'hide' && direction === 'down' && y > 160 && !searchOpen;
   const solid = design.header_scroll === 'solid' && scrolled;
   const shrink = design.header_scroll === 'shrink' && scrolled;
   const wordmark = (
-    <Link to="/" className={styles.brand} aria-label={`${brand?.name || 'Paalvi'} home`}>
+    <Link to="/" className={styles.brand} aria-label={t('nav.home')}>
       <Wordmark brand={brand} onDark={themeDark} size={design.header_wordmark_size} spacing={design.wordmark_spacing} />
     </Link>
   );
@@ -158,8 +160,9 @@ export default function Header() {
           <Sparkles size={19} strokeWidth={1.5} />
         </button>
       )}
+      <LanguagePicker className={styles.iconBtn} />
       {design.show_search && (
-        <button type="button" className={styles.iconBtn} onClick={() => setSearchOpen(true)} aria-label="Search products (press /)">
+        <button type="button" className={styles.iconBtn} onClick={() => setSearchOpen(true)} aria-label={`${t('search.open')} (/)`}>
           <Search size={19} strokeWidth={1.5} />
         </button>
       )}

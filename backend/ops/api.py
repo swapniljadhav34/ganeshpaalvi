@@ -34,6 +34,7 @@ from api.serializers import media_url, spec_url
 from catalog.models import Product, ProductImage
 from leads.models import LeadInquiry
 from storefront import validators as V
+from storefront.utils import brand_name
 
 from . import accounting as acc
 from . import analytics
@@ -50,7 +51,9 @@ from .models import (
 )
 from .permissions import needs
 from .production import create_batch, move_batch
-from .roles import ROLE_PERMISSIONS, Role, has_perm, user_permissions, user_role, user_tabs
+from .roles import (
+    GRANTABLE, PERMISSION_GROUPS, Role, has_perm, role_info, role_matrix, user_permissions, user_role, user_tabs,
+)
 
 User = get_user_model()
 staff_router = Router(auth=django_auth, tags=["studio"])
@@ -85,9 +88,12 @@ def me_payload(user):
     role = user_role(user)
     return {
         "user": {"id": user.pk, "username": user.get_username(), "name": user.get_full_name() or user.get_username(), "email": user.email},
-        "role": role.value, "role_label": role.label,
+        "role": role.key, "role_label": role.label, "is_admin": role.is_admin,
         "permissions": sorted(user_permissions(user)), "tabs": user_tabs(user),
-        "admin_url": f"/{settings.ADMIN_URL}" if role == Role.SUPER_ADMIN else None,
+        # The Designer workspace (Django admin) — open to anyone whose permissions include design/catalog work.
+        "designer_url": f"{settings.STAFF_URL}/{settings.ADMIN_URL}" if user.is_staff else None,
+        "site_url": settings.SITE_URL,
+        "brand": brand_name(),
     }
 
 
@@ -308,7 +314,8 @@ def inventory_movements(request, f: Query[MovementsQuery]):
         "id": m.pk, "at": m.created_at, "kind": m.kind, "label": m.get_kind_display(), "quantity": m.quantity,
         "stock_after": m.stock_after, "reserved_after": m.reserved_after, "reason": m.reason, "batch_number": m.batch_number,
         "production_batch": m.production_batch.batch_code if m.production_batch_id else None,
-        "item": {"id": m.item_id, "sku": m.item.sku, "title": m.item.label}, "by": person(m.performed_by),
+        "item": ({"id": m.item_id, "sku": m.item.sku, "title": m.item.label} if m.item_id
+                 else {"id": None, "sku": "", "title": m.item_label or "Deleted product"}), "by": person(m.performed_by),
     } for m in rows], "has_next": has_next, "page": f.page}
 
 
@@ -334,8 +341,9 @@ def batch_payload(b):
     active = b.status in ProductionBatch.ACTIVE
     return {
         "id": b.pk, "batch_code": b.batch_code, "status": b.status, "status_label": b.get_status_display(),
-        "item": {"id": b.item_id, "sku": b.item.sku, "title": b.item.label, "available": b.item.available,
-                 "alerts": [a.kind for a in getattr(b.item, "active_alerts", [])]},
+        "item": ({"id": b.item_id, "sku": b.item.sku, "title": b.item.label, "available": b.item.available,
+                  "alerts": [a.kind for a in getattr(b.item, "active_alerts", [])]} if b.item_id
+                 else {"id": None, "sku": "", "title": b.item_label or "Deleted product", "available": 0, "alerts": []}),
         "planned_quantity": b.planned_quantity, "completed_quantity": b.completed_quantity, "wastage_quantity": b.wastage_quantity,
         "start_date": b.start_date, "expected_completion_date": b.expected_completion_date, "completed_at": b.completed_at,
         "expiry_date": b.expiry_date, "assigned_to": person(b.assigned_to), "notes": b.notes,
@@ -368,7 +376,7 @@ def production_batches(request, f: Query[BatchQuery]):
 
 
 def production_staff():
-    allowed_roles = [r for r in Role if "production.update" in ROLE_PERMISSIONS[r]]
+    allowed_roles = [k for k, r in role_matrix().items() if "production.update" in r.permissions]
     return User.objects.filter(is_active=True).filter(
         Q(is_superuser=True) | Q(staff_profile__is_active=True, staff_profile__role__in=allowed_roles)).order_by("first_name", "username")
 
@@ -888,28 +896,63 @@ def analytics_summary(request, period: Literal["24h", "7d", "30d"] = "7d"):
 
 
 # ===========================================================================
-# Team (super admin only)
+# Team, roles & permission matrix (Admin only)
 # ===========================================================================
 def staff_payload(u):
     prof = getattr(u, "staff_profile", None)
-    role = user_role(u)
+    key = Role.SUPER_ADMIN.value if u.is_superuser else (prof.role if prof else None)
+    r = role_info(key) if key else None
     return {"id": u.pk, "username": u.get_username(), "name": u.get_full_name(), "email": u.email,
-            "role": (Role.SUPER_ADMIN if u.is_superuser else prof.role) if (u.is_superuser or prof) else None,
-            "role_label": role.label if role else "No access", "active": bool(role), "last_login": u.last_login}
+            "role": key, "role_label": r.label if r else "No access",
+            "active": bool(u.is_active and (u.is_superuser or (prof and prof.is_active))),
+            "extra_permissions": sorted(prof.extra_permissions or []) if prof else [],
+            "kind": prof.kind if prof else "EMPLOYEE", "company": prof.company if prof else "",
+            "phone": prof.phone if prof else "", "city": prof.city if prof else "",
+            "designer_access": u.is_staff, "last_login": u.last_login, "date_joined": u.date_joined}
+
+
+def roles_payload():
+    from .models import RoleDefinition
+
+    counts = dict(StaffProfile.objects.values_list("role").annotate(n=Count("id")))
+    rows = {r.key: r for r in RoleDefinition.objects.all()}
+    out = []
+    for key, info in role_matrix().items():
+        row = rows.get(key)
+        out.append({"key": key, "label": info.label, "description": row.description if row else "",
+                    "permissions": sorted(info.permissions), "builtin": row.is_builtin if row else True,
+                    "locked": key == Role.SUPER_ADMIN, "people": counts.get(key, 0), "order": row.order if row else 0})
+    return sorted(out, key=lambda r: (r["order"], r["label"]))
+
+
+def people_qs():
+    return User.objects.filter(Q(is_superuser=True) | Q(staff_profile__isnull=False)).select_related("staff_profile")
 
 
 @staff_router.get("/team")
 @needs("staff.manage")
 def team(request):
-    users = User.objects.filter(Q(is_superuser=True) | Q(staff_profile__isnull=False)).select_related("staff_profile").order_by("username")
-    return {"people": [staff_payload(u) for u in users], "roles": [{"key": r.value, "label": r.label} for r in Role]}
+    return {"people": [staff_payload(u) for u in people_qs().order_by("username")], "roles": roles_payload(),
+            "permission_groups": [{"group": g, "items": [{"key": k, "label": d, "grantable": k in GRANTABLE} for k, d in items]}
+                                  for g, items in PERMISSION_GROUPS],
+            "kinds": [{"key": k.value, "label": k.label} for k in StaffProfile.Kind]}
+
+
+def _role_key(value):
+    if role_info(value) is None:
+        raise HttpError(400, "Choose a role that exists.")
+    return value
 
 
 class StaffIn(Schema):
     username: str = Field(..., min_length=3, max_length=150, pattern=r"^[\w.@+-]+$")
     first_name: str = Field("", max_length=150)
     email: str = Field("", max_length=254)
-    role: Literal[tuple(r.value for r in Role)]  # type: ignore[valid-type]
+    role: str = Field(..., max_length=40)
+    kind: Literal[tuple(k.value for k in StaffProfile.Kind)] = "EMPLOYEE"  # type: ignore[valid-type]
+    company: str = Field("", max_length=120)
+    phone: str = Field("", max_length=20)
+    city: str = Field("", max_length=80)
 
 
 def _temp_password():
@@ -919,39 +962,83 @@ def _temp_password():
 @staff_router.post("/team")
 @needs("staff.manage")
 def team_add(request, payload: StaffIn):
+    _role_key(payload.role)
     if User.objects.filter(username__iexact=payload.username).exists():
         raise HttpError(400, "That username is taken.")
     password = _temp_password()
     with transaction.atomic():
         u = User.objects.create_user(username=payload.username, email=payload.email, password=password, first_name=payload.first_name)
-        StaffProfile.objects.create(user=u, role=payload.role)
-    return {"person": staff_payload(User.objects.select_related("staff_profile").get(pk=u.pk)), "temporary_password": password}
+        StaffProfile.objects.create(user=u, role=payload.role, kind=payload.kind, company=payload.company,
+                                    phone=payload.phone, city=payload.city)
+    return {"person": staff_payload(people_qs().get(pk=u.pk)), "temporary_password": password}
 
 
 class StaffEditIn(Schema):
-    role: Literal[tuple(r.value for r in Role)] | None = None  # type: ignore[valid-type]
+    role: str | None = Field(None, max_length=40)
     active: bool | None = None
+    extra_permissions: list[str] | None = None
+    kind: Literal[tuple(k.value for k in StaffProfile.Kind)] | None = None  # type: ignore[valid-type]
+    company: str | None = Field(None, max_length=120)
+    phone: str | None = Field(None, max_length=20)
+    city: str | None = Field(None, max_length=80)
+    first_name: str | None = Field(None, max_length=150)
+    email: str | None = Field(None, max_length=254)
 
 
 @staff_router.patch("/team/{user_id}")
 @needs("staff.manage")
 def team_edit(request, user_id: int, payload: StaffEditIn):
     u = get_object_or_404(User, pk=user_id)
-    if u.pk == request.auth.pk:
-        raise HttpError(400, "You can't change your own role or access.")
+    data = payload.dict(exclude_unset=True)
+    if u.pk == request.auth.pk and ({"role", "active", "extra_permissions"} & set(data)):
+        raise HttpError(400, "You can't change your own role or access. Ask another Admin.")
     prof, _ = StaffProfile.objects.get_or_create(user=u, defaults={"role": Role.SUPER_ADMIN if u.is_superuser else Role.EMPLOYEE_OPS})
-    if payload.role is not None:
-        prof.role = payload.role
-    if payload.active is not None:
-        prof.is_active = payload.active
-        if not payload.active and u.is_superuser:
-            prof.role = Role.EMPLOYEE_OPS  # removing access also removes super admin rights
+    if "role" in data:
+        prof.role = _role_key(data["role"])
+    if "extra_permissions" in data:
+        bad_perms = set(data["extra_permissions"]) - GRANTABLE
+        if bad_perms:
+            raise HttpError(400, "Account management and system maintenance stay with the Admin role only.")
+        prof.extra_permissions = sorted(set(data["extra_permissions"]))
+    for k in ("kind", "company", "phone", "city"):
+        if k in data:
+            setattr(prof, k, data[k])
+    if "active" in data:
+        prof.is_active = data["active"]
     try:
         prof.full_clean()
     except ValidationError as e:
         bad(e)
-    prof.save()
-    return staff_payload(User.objects.select_related("staff_profile").get(pk=u.pk))
+    with transaction.atomic():
+        prof.save()
+        # Blocking switches the whole account off (Studio AND Designer logins); restoring switches it back on.
+        fields = []
+        if "active" in data and u.is_active != data["active"]:
+            u.is_active = data["active"]
+            fields.append("is_active")
+        for k in ("first_name", "email"):
+            if k in data:
+                setattr(u, k, data[k])
+                fields.append(k)
+        if fields:
+            u.save(update_fields=fields)
+    return staff_payload(people_qs().get(pk=u.pk))
+
+
+@staff_router.delete("/team/{user_id}")
+@needs("staff.manage")
+def team_delete(request, user_id: int):
+    """Permanently delete an account. Their past work (orders, stock log, invoices) stays, marked 'deleted user'."""
+    from .models import other_admins
+
+    u = get_object_or_404(User, pk=user_id)
+    if u.pk == request.auth.pk:
+        raise HttpError(400, "You can't delete your own account.")
+    if u.is_superuser and not other_admins(u.pk).exists():
+        raise HttpError(400, "This is the last Admin. Make someone else an Admin first.")
+    name = u.get_username()
+    u.delete()
+    return {"ok": True, "deleted": name}
 
 
 @staff_router.post("/team/{user_id}/reset-password")
@@ -959,8 +1046,104 @@ def team_edit(request, user_id: int, payload: StaffEditIn):
 def team_reset(request, user_id: int):
     u = get_object_or_404(User, pk=user_id)
     if u.pk == request.auth.pk:
-        raise HttpError(400, "Use 'Change password' in the admin for your own account.")
+        raise HttpError(400, "Use 'Change password' in the Designer workspace for your own account.")
     password = _temp_password()
     u.set_password(password)
     u.save(update_fields=["password"])
     return {"temporary_password": password}
+
+
+# ---- Roles & the permission matrix ----
+class RoleIn(Schema):
+    label: str = Field(..., min_length=2, max_length=60)
+    description: str = Field("", max_length=200)
+    permissions: list[str] = Field(default_factory=list)
+    copy_from: str | None = Field(None, max_length=40)
+
+
+def _clean_perms(perms):
+    perms = set(perms)
+    if perms - GRANTABLE:
+        raise HttpError(400, "Account management and system maintenance stay with the Admin role only.")
+    return sorted(perms)
+
+
+@staff_router.post("/roles")
+@needs("staff.manage")
+def role_create(request, payload: RoleIn):
+    import re
+
+    from .models import RoleDefinition
+
+    key = re.sub(r"[^A-Z0-9]+", "_", payload.label.upper()).strip("_")[:40] or "ROLE"
+    base, n = key, 2
+    while role_info(key) is not None:
+        key = f"{base[:36]}_{n}"
+        n += 1
+    perms = payload.permissions
+    if payload.copy_from and role_info(payload.copy_from):
+        perms = sorted(set(perms) | (set(role_info(payload.copy_from).permissions) & GRANTABLE))
+    RoleDefinition.objects.create(key=key, label=payload.label.strip(), description=payload.description,
+                                  permissions=_clean_perms(perms), order=200)
+    return {"roles": roles_payload(), "key": key}
+
+
+class RoleEditIn(Schema):
+    label: str | None = Field(None, min_length=2, max_length=60)
+    description: str | None = Field(None, max_length=200)
+    permissions: list[str] | None = None
+
+
+@staff_router.patch("/roles/{key}")
+@needs("staff.manage")
+def role_edit(request, key: str, payload: RoleEditIn):
+    from .models import RoleDefinition
+
+    if key == Role.SUPER_ADMIN:
+        raise HttpError(400, "The Admin role always has every permission.")
+    if role_info(key) is None:
+        raise HttpError(404, "No such role.")
+    row, _ = RoleDefinition.objects.get_or_create(key=key, defaults={"label": role_info(key).label, "is_builtin": True})
+    data = payload.dict(exclude_unset=True)
+    if "label" in data:
+        row.label = data["label"].strip()
+    if "description" in data:
+        row.description = data["description"]
+    if "permissions" in data:
+        row.permissions = _clean_perms(data["permissions"])
+    row.save()
+    return {"roles": roles_payload()}
+
+
+@staff_router.delete("/roles/{key}")
+@needs("staff.manage")
+def role_delete(request, key: str):
+    from .models import RoleDefinition
+
+    row = get_object_or_404(RoleDefinition, key=key)
+    try:
+        row.delete()
+    except ValidationError as e:
+        bad(e)
+    return {"roles": roles_payload()}
+
+
+# ---- Directory (employees, warehouse, distribution, vendors) ----
+@staff_router.get("/directory")
+@needs("directory.view")
+def directory(request, kind: str | None = None, q: str | None = None):
+    qs = people_qs().filter(is_active=True).order_by("first_name", "username")
+    if kind:
+        qs = qs.filter(staff_profile__kind=kind)
+    if q:
+        qs = qs.filter(Q(username__icontains=q) | Q(first_name__icontains=q) | Q(last_name__icontains=q) |
+                       Q(staff_profile__company__icontains=q) | Q(staff_profile__city__icontains=q))
+    people = []
+    for u in qs[:500]:
+        p = staff_payload(u)
+        people.append({k: p[k] for k in ("id", "username", "name", "role_label", "kind", "company", "phone", "city", "email")})
+    return {"people": people, "kinds": [{"key": k.value, "label": k.label} for k in StaffProfile.Kind]}
+
+
+# The order book, products/catalog actions and system tools register their routes on staff_router.
+from . import api_catalog, api_orders, api_system  # noqa: E402,F401

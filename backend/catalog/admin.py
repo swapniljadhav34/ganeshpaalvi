@@ -293,7 +293,7 @@ class ProductAdmin(ModelAdmin, ImportExportModelAdmin):
         guide = wb.active
         guide.title = "How to use"
         for line in [
-            "PAALVI — product upload template",
+            "Product upload template",
             "",
             "1. Fill the 'Products' sheet: one row per product. 'sku' must be unique — re-uploading the same SKU updates it.",
             "2. 'category', 'badges' and 'key_ingredients' use names; new names are created automatically.",

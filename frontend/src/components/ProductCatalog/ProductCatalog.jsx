@@ -13,6 +13,7 @@ import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { useSmoothScroll } from '../../hooks/useSmoothScroll';
 import { springs } from '../../theme/motion';
 import { formatNumber } from '../../utils/format';
+import { useT } from '../../i18n/I18n';
 import FilterPanel from './FilterPanel';
 import ProductCard from './ProductCard';
 import styles from './ProductCatalog.module.css';
@@ -91,7 +92,8 @@ function Grid({ items, columns, virtual }) {
 }
 
 export default function ProductCatalog() {
-  const { data } = useSite();
+  const { data, brand } = useSite();
+  const t = useT();
   const [params, setParams] = useSearchParams();
   const [sheetOpen, setSheetOpen] = useState(false);
   const isDesktop = useMediaQuery('(min-width: 992px)');
@@ -154,11 +156,13 @@ export default function ProductCatalog() {
       <div className="pv-container">
         <header className={styles.head}>
           <div>
-            <p className="t-caption">The essentials</p>
-            <h2 id="catalog-title" className="t-h1">{filters.q ? `Results for “${filters.q}”` : 'Shop Paalvi'}</h2>
+            <p className="t-caption">{t('shop.eyebrow')}</p>
+            {/* The core store: always rendered on the homepage — no setting or role can switch it off. */}
+            <h2 id="catalog-title" className="t-h1">{filters.q ? t('shop.results', { q: filters.q }) : (brand?.shop_title || t('shop.title'))}</h2>
+            {!filters.q && brand?.shop_intro && <p className="t-muted">{brand.shop_intro}</p>}
           </div>
           <p className={`t-muted ${styles.count}`} aria-live="polite">
-            {total != null ? `${formatNumber(total)} product${total === 1 ? '' : 's'}` : ''}
+            {total != null ? t('shop.count', { n: formatNumber(total) }) : ''}
             {isFetching && !isFetchingNextPage && !isLoading ? ' · updating…' : ''}
           </p>
         </header>
@@ -166,7 +170,7 @@ export default function ProductCatalog() {
         {/* Sticky category chips with an animated underline */}
         <div className={styles.chipsBar}>
           <div className={styles.chips} role="tablist" aria-label="Categories" onKeyDown={chipKeys}>
-            {[{ slug: '', name: 'All', depth: 0 }, ...cats].map((c) => {
+            {[{ slug: '', name: t('shop.all'), depth: 0 }, ...cats].map((c) => {
               const on = (filters.category || '') === c.slug;
               return (
                 <button key={c.slug || 'all'} type="button" role="tab" aria-selected={on} tabIndex={on ? 0 : -1}

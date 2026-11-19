@@ -16,7 +16,7 @@ Your choices: you can ask us to show, correct or delete your details at any time
 
 export default function PrivacyPage() {
   const { brand } = useSite();
-  const name = brand?.name || 'Paalvi';
+  const name = brand?.name || 'This shop';
   const text = brand?.privacy_policy || DEFAULT(name, brand?.email);
   return (
     <main className="pv-container" style={{ position: 'relative', zIndex: 1, maxWidth: 760, paddingBlock: '120px 96px' }}>

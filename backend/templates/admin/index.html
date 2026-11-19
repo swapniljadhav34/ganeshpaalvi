@@ -8,18 +8,18 @@
 {% endblock %}
 
 {% block content %}
-{# Paalvi owner dashboard — numbers come from storefront/dashboard.py #}
+{# Designer dashboard — numbers come from storefront/dashboard.py #}
 <div class="pv-dash">
   <div class="pv-hello">
     <div>
-      <p class="pv-eyebrow">Paalvi Studio</p>
+      <p class="pv-eyebrow">{{ site_header }}</p>
       <h1>Good to see you{% if request.user.first_name %}, {{ request.user.first_name }}{% endif %}.</h1>
       <p class="pv-muted">Here's how your showroom is doing today.</p>
     </div>
     <div class="pv-quick">
-      <a class="pv-btn pv-btn-primary" href="{% url 'admin:catalog_product_add' %}">＋ Add product</a>
-      <a class="pv-btn" href="{% url 'admin:storefront_activetheme_changelist' %}">🎨 Change theme</a>
-      <a class="pv-btn" href="{% url 'admin:leads_leadinquiry_changelist' %}?status__exact=new">📥 View new leads</a>
+      {% if perms.catalog.add_product %}<a class="pv-btn pv-btn-primary" href="{% url 'admin:catalog_product_add' %}">＋ Add product</a>{% endif %}
+      {% if perms.storefront.change_activetheme %}<a class="pv-btn" href="{% url 'admin:storefront_activetheme_changelist' %}">🎨 Change theme</a>{% endif %}
+      {% if perms.leads.view_leadinquiry %}<a class="pv-btn" href="{% url 'admin:leads_leadinquiry_changelist' %}?status__exact=new">📥 View new leads</a>{% endif %}
       <a class="pv-btn" href="{{ dash.site_url }}" target="_blank" rel="noopener">View site ↗</a>
     </div>
   </div>

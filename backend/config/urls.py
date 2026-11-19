@@ -16,10 +16,11 @@ from django.contrib import admin
 from django.urls import path, re_path
 
 from api.api import api
-from api.seo import robots_txt, sitemap_xml, spa_asset, spa_view, studio_view
+from api.seo import robots_txt, sitemap_xml, spa_asset, spa_view, studio_view, track_view
 
-admin.site.site_header = "Paalvi Studio"
-admin.site.site_title = "Paalvi Studio"
+admin.site.site_header = "Designer"  # the sidebar title follows the brand name (settings.UNFOLD)
+admin.site.site_title = "Designer"
+admin.site.index_title = "Dashboard"
 
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
@@ -35,6 +36,8 @@ if settings.DEBUG:
 urlpatterns += [
     path("p/<slug:slug>", spa_view, name="product-share"),
     path("privacy", spa_view, name="privacy"),
+    path("track", track_view, name="track"),
+    path("track/<str:token>", track_view, name="track-link"),
     path("studio", studio_view, name="studio"),
     re_path(r"^studio/(?P<rest>.*)$", studio_view),
     path("__preview", studio_view, name="admin-preview"),

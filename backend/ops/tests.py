@@ -127,7 +127,7 @@ class PermissionTests(BaseCase):
         self.assertEqual(r.status_code, 200)
         body = r.json()
         self.assertEqual(body["role"], "ACCOUNTANT")
-        self.assertEqual([t["key"] for t in body["tabs"]], ["accounting"])
+        self.assertEqual([t["key"] for t in body["tabs"]], ["orders", "accounting"])
         self.assertNotIn("inventory.view", body["permissions"])
 
     def test_role_profile_controls_django_admin_access(self):
@@ -135,8 +135,12 @@ class PermissionTests(BaseCase):
         StaffProfile.objects.create(user=u, role=Role.SUPER_ADMIN)
         u.refresh_from_db()
         self.assertTrue(u.is_superuser and u.is_staff)
-        emp = make_user("emp", Role.EMPLOYEE_CATALOG)
-        self.assertFalse(emp.is_staff)  # employees never get /admin/
+        emp = make_user("emp", Role.EMPLOYEE_OPS)
+        emp.refresh_from_db()
+        self.assertFalse(emp.is_staff)  # no design/catalog permission → no Designer workspace
+        designer = make_user("des", Role.DESIGNER)
+        designer.refresh_from_db()
+        self.assertTrue(designer.is_staff and not designer.is_superuser)  # Designer workspace, but not Admin
 
 
 class InventoryTests(BaseCase):

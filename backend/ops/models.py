@@ -42,38 +42,124 @@ def private_storage():
 
 
 # ---------------------------------------------------------------------------
-# Staff
+# People, roles and the permission matrix
 # ---------------------------------------------------------------------------
+class RoleDefinition(models.Model):
+    """One role and the permissions it grants. Built-in roles are seeded; the Admin can add more."""
+
+    key = models.CharField(max_length=40, unique=True, help_text="Internal code, e.g. FIELD_SALES. Can't be changed later.")
+    label = models.CharField(max_length=60, help_text="Name people see, e.g. 'Field sales'.")
+    description = models.CharField(max_length=200, blank=True)
+    permissions = models.JSONField(default=list, blank=True)
+    is_builtin = models.BooleanField(default=False, editable=False)
+    order = models.PositiveSmallIntegerField(default=100)
+
+    class Meta:
+        ordering = ["order", "label"]
+        verbose_name = "Role"
+
+    def __str__(self):
+        return self.label
+
+    def clean(self):
+        from .roles import GRANTABLE, PERMISSIONS
+
+        unknown = set(self.permissions or []) - set(PERMISSIONS)
+        if unknown:
+            raise ValidationError(f"Unknown permission(s): {', '.join(sorted(unknown))}")
+        if self.key != Role.SUPER_ADMIN and set(self.permissions or []) - GRANTABLE:
+            raise ValidationError("Account management and system maintenance stay with the Admin role only.")
+
+    def save(self, *args, **kwargs):
+        from .roles import GRANTABLE, PERMISSIONS, forget_role_matrix
+
+        if self.key == Role.SUPER_ADMIN:
+            self.permissions = sorted(PERMISSIONS)
+        else:
+            self.permissions = sorted(set(self.permissions or []) & GRANTABLE)
+        super().save(*args, **kwargs)
+        forget_role_matrix()
+        for prof in StaffProfile.objects.filter(role=self.key).select_related("user"):
+            prof.sync_user_flags()
+
+    def delete(self, *args, **kwargs):
+        from .roles import forget_role_matrix
+
+        if self.is_builtin:
+            raise ValidationError("Built-in roles can't be deleted. Change their permissions instead.")
+        if StaffProfile.objects.filter(role=self.key).exists():
+            raise ValidationError("Move the people in this role to another role first.")
+        out = super().delete(*args, **kwargs)
+        forget_role_matrix()
+        return out
+
+
 class StaffProfile(models.Model):
+    class Kind(models.TextChoices):
+        EMPLOYEE = "EMPLOYEE", "Internal employee"
+        WAREHOUSE = "WAREHOUSE", "Warehouse"
+        DISTRIBUTION = "DISTRIBUTION", "Distribution"
+        MARKETING = "MARKETING", "Marketing / field"
+        VENDOR = "VENDOR", "External vendor"
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="staff_profile")
-    role = models.CharField(max_length=24, choices=Role.choices, default=Role.EMPLOYEE_OPS,
-                            help_text="Decides which Studio tabs this person can open. "
-                                      "'Super admin' also gives full access to these admin settings.")
+    role = models.CharField(max_length=40, default=Role.EMPLOYEE_OPS,
+                            help_text="Decides what this person can open. 'Admin' has master control.")
+    extra_permissions = models.JSONField(default=list, blank=True,
+                                         help_text="Extra permissions for this person only (e.g. covering a colleague's work).")
+    kind = models.CharField(max_length=20, choices=Kind.choices, default=Kind.EMPLOYEE, verbose_name="Directory group")
+    company = models.CharField(max_length=120, blank=True, help_text="Vendors: company name.")
     phone = models.CharField(max_length=20, blank=True)
-    is_active = models.BooleanField(default=True, help_text="Untick to block Studio access without deleting the account.")
+    city = models.CharField(max_length=80, blank=True)
+    is_active = models.BooleanField(default=True, help_text="Untick to block access without deleting the account.")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = "Staff role"
-        verbose_name_plural = "Staff roles"
+        verbose_name = "Person & role"
+        verbose_name_plural = "People & roles"
 
     def __str__(self):
-        return f"{self.user.get_username()} — {self.get_role_display()}"
+        from .roles import role_info
+
+        r = role_info(self.role)
+        return f"{self.user.get_username()} - {r.label if r else self.role}"
 
     def clean(self):
-        if self.user_id and self.user.is_superuser and self.role != Role.SUPER_ADMIN:
-            others = type(self.user).objects.filter(is_superuser=True, is_active=True).exclude(pk=self.user_id)
-            if not others.exists():
-                raise ValidationError("This is the last super admin. Make someone else a super admin first.")
+        from .roles import GRANTABLE, role_info
+
+        if role_info(self.role) is None:
+            raise ValidationError("Choose a role that exists.")
+        if set(self.extra_permissions or []) - GRANTABLE:
+            raise ValidationError("Account management and system maintenance stay with the Admin role only.")
+        losing_admin = self.user_id and self.user.is_superuser and (self.role != Role.SUPER_ADMIN or not self.is_active)
+        if losing_admin and not other_admins(self.user_id).exists():
+            raise ValidationError("This is the last Admin. Make someone else an Admin first.")
+
+    def sync_user_flags(self):
+        """Keep Django's flags in step with the matrix (one source of truth).
+
+        is_superuser: only an active Admin.  is_staff: anyone allowed into the Designer workspace.
+        """
+        from .roles import role_info, wants_designer_access
+
+        user = self.user
+        r = role_info(self.role)
+        perms = set(r.permissions if r else ()) | set(self.extra_permissions or [])
+        want_super = self.is_active and self.role == Role.SUPER_ADMIN
+        want_staff = want_super or (self.is_active and wants_designer_access(perms))
+        if user.is_superuser != want_super or user.is_staff != want_staff:
+            user.is_superuser, user.is_staff = want_super, want_staff
+            user.save(update_fields=["is_superuser", "is_staff"])
 
     def save(self, *args, **kwargs):
-        # Keep Django's own flags in step with the role: only super admins may use /admin/.
-        user = self.user
-        want_super = self.role == Role.SUPER_ADMIN
-        if user.is_superuser != want_super or user.is_staff != want_super:
-            user.is_superuser = user.is_staff = want_super
-            user.save(update_fields=["is_superuser", "is_staff"])
         super().save(*args, **kwargs)
+        self.sync_user_flags()
+
+
+def other_admins(exclude_user_id):
+    from django.contrib.auth import get_user_model
+
+    return get_user_model().objects.filter(is_superuser=True, is_active=True).exclude(pk=exclude_user_id)
 
 
 # ---------------------------------------------------------------------------
@@ -152,7 +238,9 @@ class StockMovement(models.Model):
         RESERVE = "RESERVE", "Reserved for an order"
         RELEASE = "RELEASE", "Reservation released"
 
-    item = models.ForeignKey(InventoryItem, on_delete=models.PROTECT, related_name="movements")
+    # SET_NULL: deleting a product keeps its history; item_label remembers what it was.
+    item = models.ForeignKey(InventoryItem, on_delete=models.SET_NULL, null=True, related_name="movements")
+    item_label = models.CharField(max_length=220, blank=True, help_text="SKU and name at the time (kept if the product is deleted).")
     kind = models.CharField(max_length=20, choices=Kind.choices, db_index=True)
     quantity = models.IntegerField(help_text="Change in pieces: positive adds, negative removes.")
     stock_after = models.IntegerField()
@@ -169,9 +257,11 @@ class StockMovement(models.Model):
         indexes = [models.Index(fields=["item", "-created_at"], name="mv_item_recent")]
 
     def __str__(self):
-        return f"{self.get_kind_display()} {self.quantity:+d} · {self.item.sku}"
+        return f"{self.get_kind_display()} {self.quantity:+d} · {self.item.sku if self.item_id else self.item_label}"
 
     def save(self, *args, **kwargs):
+        if not self.item_label and self.item_id:
+            self.item_label = f"{self.item.sku} - {self.item.label}"[:220]
         if self.pk:
             raise ValidationError("Stock movements are a permanent audit log and can't be edited.")
         super().save(*args, **kwargs)
@@ -222,7 +312,8 @@ class ProductionBatch(models.Model):
     ACTIVE = FLOW[:-1]  # everything before COMPLETED
 
     batch_code = models.CharField(max_length=30, unique=True)
-    item = models.ForeignKey(InventoryItem, on_delete=models.PROTECT, related_name="production_batches")
+    item = models.ForeignKey(InventoryItem, on_delete=models.SET_NULL, null=True, related_name="production_batches")
+    item_label = models.CharField(max_length=220, blank=True, help_text="Product at the time (kept if the product is deleted).")
     planned_quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     completed_quantity = models.PositiveIntegerField(default=0)
     wastage_quantity = models.PositiveIntegerField(default=0)
@@ -243,7 +334,12 @@ class ProductionBatch(models.Model):
         verbose_name_plural = "Production batches"
 
     def __str__(self):
-        return f"{self.batch_code} · {self.item.sku}"
+        return f"{self.batch_code} · {self.item.sku if self.item_id else self.item_label}"
+
+    def save(self, *args, **kwargs):
+        if self.item_id and not self.item_label:
+            self.item_label = f"{self.item.sku} - {self.item.label}"[:220]
+        super().save(*args, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -415,3 +511,115 @@ class TrafficEvent(models.Model):
 
     class Meta:
         indexes = [models.Index(fields=["product", "created_at"], name="traffic_product_time")]
+
+
+# ---------------------------------------------------------------------------
+# Order book (online + offline orders) with live status
+# ---------------------------------------------------------------------------
+class Order(models.Model):
+    class Source(models.TextChoices):
+        ONLINE = "ONLINE", "Website"
+        PHONE = "PHONE", "Phone call"
+        WHATSAPP = "WHATSAPP", "WhatsApp"
+        FIELD = "FIELD", "Field visit (marketing / distribution)"
+        WALK_IN = "WALK_IN", "Walk-in / showroom"
+        EMAIL = "EMAIL", "Email"
+
+    class Channel(models.TextChoices):
+        RETAIL = "RETAIL", "Retail"
+        WHOLESALE = "WHOLESALE", "Wholesale"
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        CONFIRMED = "CONFIRMED", "Confirmed"
+        PACKED = "PACKED", "Packed"
+        IN_TRANSIT = "IN_TRANSIT", "In transit"
+        DELIVERED = "DELIVERED", "Delivered"
+        CANCELLED = "CANCELLED", "Cancelled"
+
+    class Payment(models.TextChoices):
+        UNPAID = "UNPAID", "Not paid"
+        PARTIAL = "PARTIAL", "Part paid"
+        PAID = "PAID", "Paid"
+        COD = "COD", "Cash on delivery"
+
+    class StockState(models.TextChoices):
+        NONE = "NONE", "Not touched"
+        RESERVED = "RESERVED", "Reserved"
+        DISPATCHED = "DISPATCHED", "Taken out of stock"
+        RETURNED = "RETURNED", "Returned to stock"
+
+    FLOW = [Status.PENDING, Status.CONFIRMED, Status.PACKED, Status.IN_TRANSIT, Status.DELIVERED]
+
+    number = models.CharField(max_length=24, unique=True)
+    tracking_token = models.CharField(max_length=24, unique=True, help_text="Secret part of the customer's tracking link.")
+    source = models.CharField(max_length=10, choices=Source.choices, default=Source.PHONE, db_index=True)
+    channel = models.CharField(max_length=10, choices=Channel.choices, default=Channel.RETAIL)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING, db_index=True)
+    stock_state = models.CharField(max_length=10, choices=StockState.choices, default=StockState.NONE)
+
+    customer_name = models.CharField(max_length=120)
+    phone = models.CharField(max_length=20, db_index=True)
+    email = models.EmailField(blank=True)
+    business_name = models.CharField(max_length=140, blank=True)
+    gstin = models.CharField(max_length=15, blank=True, verbose_name="GSTIN")
+    address = models.TextField(blank=True)
+    city = models.CharField(max_length=80, blank=True)
+    state = models.CharField(max_length=60, blank=True)
+    pincode = models.CharField(max_length=10, blank=True)
+
+    subtotal = models.DecimalField(**MONEY)
+    discount = models.DecimalField(**MONEY)
+    shipping = models.DecimalField(**MONEY)
+    total = models.DecimalField(**MONEY)
+    payment_status = models.CharField(max_length=8, choices=Payment.choices, default=Payment.UNPAID)
+    payment_mode = models.CharField(max_length=40, blank=True, help_text="UPI, cash, bank transfer…")
+
+    courier = models.CharField(max_length=80, blank=True)
+    tracking_number = models.CharField(max_length=80, blank=True)
+    expected_delivery = models.DateField(null=True, blank=True)
+
+    customer_note = models.CharField(max_length=500, blank=True, help_text="Shown on the receipt and tracking page.")
+    internal_notes = models.TextField(blank=True, help_text="Only staff see this.")
+    lead = models.ForeignKey("leads.LeadInquiry", on_delete=models.SET_NULL, null=True, blank=True, related_name="orders")
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="orders_logged")
+    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="orders_assigned")
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        indexes = [models.Index(fields=["status", "-created_at"], name="order_status_recent")]
+
+    def __str__(self):
+        return f"{self.number} · {self.customer_name}"
+
+
+class OrderLine(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="lines")
+    product = models.ForeignKey("catalog.Product", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    item = models.ForeignKey(InventoryItem, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    title = models.CharField(max_length=220)
+    sku = models.CharField(max_length=60, blank=True)
+    quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2, help_text="Per piece, incl. GST.")
+
+    class Meta:
+        ordering = ["pk"]
+
+    @property
+    def line_total(self):
+        return (self.unit_price * self.quantity).quantize(Decimal("0.01"))
+
+
+class OrderEvent(models.Model):
+    """Timeline of an order. Customer-visible events show on the tracking page."""
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="events")
+    status = models.CharField(max_length=12, choices=Order.Status.choices)
+    note = models.CharField(max_length=300, blank=True)
+    by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["at", "pk"]

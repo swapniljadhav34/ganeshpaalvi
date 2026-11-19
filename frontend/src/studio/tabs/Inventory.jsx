@@ -232,6 +232,16 @@ function MovementsModal({ item, onClose }) {
 
 export default function Inventory() {
   const { can } = useAuth();
+  const qcZero = useQueryClient();
+  const toastZero = useToast();
+  const zero = async (it) => {
+    if (!window.confirm(`Reset ${it.title} (${it.sku}) to 0 in stock? It's logged as a stock correction of −${it.stock}.`)) return;
+    try {
+      await api(`/inventory/items/${it.id}/zero`, { method: 'POST' });
+      toastZero(`${it.sku} reset to 0`);
+      qcZero.invalidateQueries({ queryKey: ['studio'] });
+    } catch (e) { toastZero(e.message, 'critical'); }
+  };
   const [q, setQ] = useState('');
   const [flag, setFlag] = useState('');
   const [page, setPage] = useState(1);
@@ -311,6 +321,9 @@ export default function Inventory() {
                   <td data-label="Actions">
                     <div className="st-row-actions">
                       {can('inventory.adjust') && <Button size="sm" onClick={() => setModal({ kind: 'adjust', item: it })}>± Stock</Button>}
+                      {can('inventory.reset') && it.stock > 0 && (
+                        <Button size="sm" variant="ghost" onClick={() => zero(it)}>Reset to 0</Button>
+                      )}
                       {can('inventory.batches') && <Button size="sm" variant="ghost" onClick={() => setModal({ kind: 'batch', item: it })}>Batch</Button>}
                       {can('inventory.configure') && <Button size="sm" variant="ghost" onClick={() => setModal({ kind: 'thresholds', item: it })}>Alert levels</Button>}
                       {can('production.manage') && it.alerts.some((a) => ['PRODUCTION_NEEDED', 'LOW_STOCK', 'OUT_OF_STOCK'].includes(a.kind)) && (

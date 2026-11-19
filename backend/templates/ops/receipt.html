@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Receipt {{ o.number }}{% if brand.brand_name %} · {{ brand.brand_name }}{% endif %}</title>
+<style>
+  :root { --ink: #14181f; --muted: #5d6470; --line: #d9dde3; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #eef0f3; color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", "Noto Sans", sans-serif; }
+  .bar { position: sticky; top: 0; display: flex; gap: 8px; justify-content: center; padding: 10px; background: #fff; border-bottom: 1px solid var(--line); }
+  .bar a, .bar button { font: inherit; padding: 8px 16px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; text-decoration: none; }
+  .bar button { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .sheet { background: #fff; margin: 24px auto; padding: 40px; max-width: 210mm; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+  h1 { font-size: 22px; margin: 0; letter-spacing: .02em; }
+  .muted { color: var(--muted); }
+  .top { display: flex; justify-content: space-between; gap: 24px; border-bottom: 2px solid var(--ink); padding-bottom: 14px; margin-bottom: 16px; }
+  .meta { text-align: right; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 7px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .totals { margin-left: auto; width: 280px; margin-top: 10px; }
+  .totals td { border: 0; padding: 3px 6px; }
+  .grand td { border-top: 2px solid var(--ink); font-weight: 700; font-size: 16px; padding-top: 8px; }
+  .status { display: inline-block; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--ink); font-size: 12px; font-weight: 600; }
+  .foot { margin-top: 24px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; white-space: pre-line; }
+
+  /* 80 mm thermal roll: one narrow column, no greys that print as noise */
+  .thermal .sheet { max-width: 80mm; padding: 4mm; font-size: 12px; box-shadow: none; }
+  .thermal h1 { font-size: 16px; text-align: center; }
+  .thermal .top, .thermal .two { display: block; text-align: center; }
+  .thermal .meta { text-align: center; margin-top: 6px; }
+  .thermal .two > div { margin-bottom: 8px; text-align: left; }
+  .thermal th { display: none; }
+  .thermal td { padding: 3px 0; border-bottom: 1px dashed #000; }
+  .thermal .sku, .thermal .rate { display: none; }
+  .thermal .totals { width: 100%; }
+  .thermal .muted { color: #000; }
+
+  @media print {
+    body { background: #fff; }
+    .bar { display: none; }
+    .sheet { margin: 0; box-shadow: none; max-width: none; }
+    @page { size: A4; margin: 12mm; }
+    .thermal .sheet { width: 72mm; padding: 0; }
+  }
+  {% if size == "thermal" %}@media print { @page { size: 80mm auto; margin: 3mm; } }{% endif %}
+</style>
+</head>
+<body class="{{ size }}">
+<div class="bar">
+  <button type="button" onclick="window.print()">Print / Save as PDF</button>
+  {% if size == "thermal" %}<a href="?size=a4">A4 layout</a>{% else %}<a href="?size=thermal">Thermal (80 mm)</a>{% endif %}
+</div>
+<main class="sheet">
+  <div class="top">
+    <div>
+      <h1>{{ brand.brand_name|default:"Receipt" }}</h1>
+      {% if brand.registered_address %}<div class="muted">{{ brand.registered_address|linebreaksbr }}</div>{% endif %}
+      <div class="muted">
+        {% if brand.phone %}{{ brand.phone }}{% endif %}{% if brand.phone and brand.contact_email %} · {% endif %}{% if brand.contact_email %}{{ brand.contact_email }}{% endif %}
+      </div>
+      {% if brand.gstin %}<div class="muted">GSTIN {{ brand.gstin }}</div>{% endif %}
+    </div>
+    <div class="meta">
+      <strong>Order receipt</strong><br>
+      {{ o.number }}<br>
+      <span class="muted">{{ o.created_at|date:"d M Y, H:i" }}</span><br>
+      <span class="status">{{ o.get_status_display }}</span>
+    </div>
+  </div>
+
+  <div class="two">
+    <div>
+      <div class="muted">Customer</div>
+      <strong>{{ o.customer_name }}</strong>{% if o.business_name %}<br>{{ o.business_name }}{% endif %}
+      {% if not public %}<br>{{ o.phone }}{% endif %}
+      {% if o.gstin %}<br>GSTIN {{ o.gstin }}{% endif %}
+    </div>
+    <div>
+      {% if o.address or o.city %}
+        <div class="muted">Deliver to</div>
+        {% if not public %}{{ o.address|linebreaksbr }}<br>{% endif %}{{ o.city }}{% if o.state %}, {{ o.state }}{% endif %} {{ o.pincode }}
+      {% endif %}
+      {% if o.courier or o.tracking_number %}<br><span class="muted">Courier</span> {{ o.courier }} {{ o.tracking_number }}{% endif %}
+    </div>
+  </div>
+
+  <table>
+    <thead><tr><th>Item</th><th class="sku">SKU</th><th class="num">Qty</th><th class="num rate">Rate</th><th class="num">Amount</th></tr></thead>
+    <tbody>
+    {% for ln in lines %}
+      <tr><td>{{ ln.title }}</td><td class="sku muted">{{ ln.sku }}</td><td class="num">{{ ln.quantity }}</td>
+          <td class="num rate">₹{{ ln.unit_price }}</td><td class="num">₹{{ ln.line_total }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <table class="totals">
+    <tr><td>Subtotal</td><td class="num">₹{{ o.subtotal }}</td></tr>
+    {% if o.discount %}<tr><td>Discount</td><td class="num">−₹{{ o.discount }}</td></tr>{% endif %}
+    {% if o.shipping %}<tr><td>Shipping</td><td class="num">₹{{ o.shipping }}</td></tr>{% endif %}
+    <tr class="grand"><td>Total</td><td class="num">₹{{ o.total }}</td></tr>
+    <tr><td class="muted">Payment</td><td class="num muted">{{ o.get_payment_status_display }}{% if o.payment_mode %} · {{ o.payment_mode }}{% endif %}</td></tr>
+  </table>
+  <p class="muted" style="font-size:12px">Prices include GST. This is an order receipt, not a tax invoice.</p>
+
+  {% if o.customer_note %}<p>{{ o.customer_note }}</p>{% endif %}
+  <div class="foot">Track this order: {{ site_url }}/track/{{ o.tracking_token }}{% if brand.customer_care_details %}
+{{ brand.customer_care_details }}{% endif %}</div>
+</main>
+</body>
+</html>

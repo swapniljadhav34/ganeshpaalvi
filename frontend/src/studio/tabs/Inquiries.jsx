@@ -2,13 +2,15 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, qs } from '../api';
 import { useAuth } from '../auth';
 import { Badge, Button, Empty, ErrorState, Loading, Pager, num, useDebounced, useToast, when } from '../ui';
 
 const TONE = { new: 'info', contacted: 'warn', quoted: 'serious', won: 'good', lost: 'neutral' };
 
-function LeadCard({ lead, canEdit }) {
+function LeadCard({ lead, canEdit, canOrder }) {
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const toast = useToast();
   const [notes, setNotes] = useState(lead.notes || '');
@@ -46,6 +48,7 @@ function LeadCard({ lead, canEdit }) {
           </select>
           <input className="st-input" value={notes} maxLength={4000} placeholder="Private note" aria-label="Private note" onChange={(e) => setNotes(e.target.value)} />
           <Button size="sm" variant="ghost" busy={busy} disabled={notes === (lead.notes || '')} onClick={() => save({ notes }, 'Note saved')}>Save note</Button>
+          {canOrder && <Button size="sm" onClick={() => navigate('/studio/orders', { state: { fromLead: lead } })}>Turn into order</Button>}
         </div>
       )}
     </article>
@@ -62,7 +65,7 @@ export default function Inquiries() {
   const counts = res.data?.counts || {};
   return (
     <section className="st-section" aria-labelledby="iq-h">
-      <div className="st-head"><div><h1 id="iq-h">Orders & enquiries</h1><p className="st-muted">WhatsApp taps, enquiry forms and B2B requests from the website.</p></div></div>
+      <div className="st-head"><div><h1 id="iq-h">Enquiries</h1><p className="st-muted">WhatsApp taps, enquiry forms and B2B requests from the website. Turn a confirmed one into an order.</p></div></div>
       <div className="st-filters">
         <label className="st-search"><Search size={16} aria-hidden="true" /><input value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder="Name, phone, city or message" aria-label="Search enquiries" /></label>
         <div className="st-chips" role="radiogroup" aria-label="Stage">
@@ -74,7 +77,7 @@ export default function Inquiries() {
         </div>
       </div>
       {res.isLoading ? <Loading /> : res.isError ? <ErrorState error={res.error} retry={res.refetch} /> : res.data.leads.length === 0 ? <Empty title="No enquiries here" /> : (
-        <div className="st-cards">{res.data.leads.map((l) => <LeadCard key={`${l.id}-${l.status}`} lead={l} canEdit={can('leads.update')} />)}</div>
+        <div className="st-cards">{res.data.leads.map((l) => <LeadCard key={`${l.id}-${l.status}`} lead={l} canEdit={can('leads.update')} canOrder={can('orders.create')} />)}</div>
       )}
       {res.data && <Pager page={page} hasNext={res.data.has_next} onPage={setPage} />}
     </section>

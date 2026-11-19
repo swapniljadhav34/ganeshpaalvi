@@ -1,10 +1,13 @@
 """
-Operations in the admin (super admins only — employees use Paalvi Studio at /studio).
+Operations in the admin (Admin only — everyone else uses Studio at /studio).
+People, roles and permissions are managed in ONE place: Studio → Team & roles. The screens
+here are a read-mostly fallback for the Admin.
 
 Stock numbers are read-only here on purpose: every change must go through the Studio so it
 is locked, logged in the movement audit trail and re-checked for alerts.
 """
 
+from django import forms
 from django.conf import settings
 from django.contrib import admin
 from django.utils.html import format_html
@@ -18,33 +21,115 @@ from .models import (
     InventorySettings,
     Invoice,
     InvoiceLine,
+    Order,
+    OrderEvent,
+    OrderLine,
     PaymentRecord,
     ProductionBatch,
+    RoleDefinition,
     StaffProfile,
     StockMovement,
 )
+from .roles import role_matrix
 
 
 def studio_link(tab, label="Open in Studio ↗"):
     return format_html('<a href="{}/studio/{}" target="_blank" rel="noopener" class="text-primary-600 font-semibold">{}</a>',
-                       settings.SITE_URL, tab, label)
+                       settings.STAFF_URL, tab, label)
+
+
+class StaffProfileForm(forms.ModelForm):
+    role = forms.ChoiceField()
+
+    class Meta:
+        model = StaffProfile
+        fields = ["user", "role", "kind", "company", "phone", "city", "is_active"]
+
+    def __init__(self, *a, **kw):
+        super().__init__(*a, **kw)
+        self.fields["role"].choices = [(k, r.label) for k, r in role_matrix().items()]
 
 
 @admin.register(StaffProfile)
 class StaffProfileAdmin(ModelAdmin):
-    list_display = ["user", "full_name", "role", "is_active", "last_login"]
-    list_editable = ["role", "is_active"]
-    list_filter = ["role", "is_active"]
-    search_fields = ["user__username", "user__first_name", "user__last_name", "user__email"]
+    form = StaffProfileForm
+    list_display = ["user", "full_name", "role_name", "kind", "is_active", "last_login", "studio"]
+    list_filter = ["kind", "is_active"]
+    search_fields = ["user__username", "user__first_name", "user__last_name", "user__email", "company"]
     autocomplete_fields = ["user"]
 
     @display(description="Name")
     def full_name(self, obj):
-        return obj.user.get_full_name() or "—"
+        return obj.user.get_full_name() or obj.company or "—"
+
+    @display(description="Role")
+    def role_name(self, obj):
+        r = role_matrix().get(obj.role)
+        return r.label if r else obj.role
 
     @display(description="Last login")
     def last_login(self, obj):
         return obj.user.last_login or "Never"
+
+    @display(description="")
+    def studio(self, obj):
+        return studio_link("team", "Permissions in Studio ↗")
+
+
+@admin.register(RoleDefinition)
+class RoleDefinitionAdmin(ModelAdmin):
+    list_display = ["label", "key", "description", "perm_count", "is_builtin", "studio"]
+    readonly_fields = ["key", "permissions", "is_builtin"]
+
+    @display(description="Permissions")
+    def perm_count(self, obj):
+        return len(obj.permissions or [])
+
+    @display(description="")
+    def studio(self, obj):
+        return studio_link("team", "Edit the permission matrix in Studio ↗")
+
+    def has_add_permission(self, request):
+        return False  # roles are created in Studio, where the permission matrix is
+
+
+class OrderLineInline(TabularInline):
+    model = OrderLine
+    extra = 0
+    fields = ["title", "sku", "quantity", "unit_price"]
+    readonly_fields = fields
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+class OrderEventInline(TabularInline):
+    model = OrderEvent
+    extra = 0
+    fields = ["at", "status", "note", "by"]
+    readonly_fields = fields
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(Order)
+class OrderAdmin(ModelAdmin):
+    list_display = ["number", "created_at", "customer_name", "phone", "source", "status", "total", "payment_status"]
+    list_filter = ["status", "source", "channel", "payment_status"]
+    search_fields = ["number", "customer_name", "phone", "business_name"]
+    inlines = [OrderLineInline, OrderEventInline]
+    readonly_fields = ["number", "tracking_token", "status", "stock_state", "subtotal", "total", "studio"]
+    exclude = ["created_by", "lead", "assigned_to"]
+
+    @display(description="Status")
+    def studio(self, obj):
+        return studio_link("orders", "Change status in Studio ↗ (keeps stock in step)")
+
+    def has_add_permission(self, request):
+        return False
 
 
 @admin.register(InventorySettings)

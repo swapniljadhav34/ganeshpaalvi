@@ -16,6 +16,7 @@ from imagekit.processors import ResizeToFit
 
 from . import design as D
 from . import validators as V
+from .languages import LANGUAGE_CHOICES
 from .utils import SingletonModel, compress_image_field, contrast_ratio
 
 hex_validator = RegexValidator(r"^#[0-9A-Fa-f]{6}$", "Please pick a colour (format like #8FC9B9).")
@@ -140,7 +141,16 @@ class BrandSettings(SingletonModel):
     announcement_more = models.TextField(blank=True, help_text="Optional extra messages, one per line. They rotate or scroll "
                                                                "with the first one (choose the style in Site Design Studio).")
 
-    footer_story = models.TextField(blank=True, help_text="A few warm lines about Paalvi shown in the footer.")
+    footer_story = models.TextField(blank=True, help_text="A few warm lines about your brand shown in the footer.")
+    shop_title = models.CharField(max_length=80, blank=True,
+                                  help_text="Heading of the product catalogue. Empty = 'Shop <brand name>'. "
+                                            "The catalogue itself is the core of the site and is always on — no role can switch it off.")
+    shop_intro = models.CharField(max_length=200, blank=True, help_text="Optional line under the catalogue heading.")
+    search_placeholder = models.CharField(max_length=80, blank=True,
+                                          help_text="Text inside the search box. Empty = 'Search <brand name>…'.")
+    default_language = models.CharField(max_length=4, choices=LANGUAGE_CHOICES, default="en",
+                                        help_text="Language visitors see first. They can switch at any time.")
+    show_language_picker = models.BooleanField(default=True, help_text="Show the language switch in the header.")
     privacy_policy = models.TextField(blank=True, help_text="Your privacy policy, shown at /privacy and linked from every form. "
                                                             "Leave a blank line between paragraphs. Empty = a sensible default.")
     default_seo_title = models.CharField(max_length=70, default="Paalvi — Everyday essentials, elevated", help_text="Title shown in Google results (keep under 60 characters).")
@@ -751,3 +761,20 @@ class AIAssistantConfig(SingletonModel):
 
     def __str__(self):
         return self.assistant_name
+
+
+class UiTranslation(models.Model):
+    """Override any built-in website word in any language (e.g. fix a translation, or rename a button)."""
+
+    language = models.CharField(max_length=4, choices=LANGUAGE_CHOICES, db_index=True)
+    key = models.CharField(max_length=60, help_text="The phrase's code, e.g. search.placeholder or cart.enquire. "
+                                                    "See the list in the help panel on the right.")
+    text = models.CharField(max_length=300, help_text="Use {brand} where the brand name should appear.")
+
+    class Meta:
+        ordering = ["language", "key"]
+        verbose_name = "Translation"
+        constraints = [models.UniqueConstraint(fields=["language", "key"], name="uitr_one_per_lang_key")]
+
+    def __str__(self):
+        return f"{self.language} · {self.key}"

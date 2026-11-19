@@ -1,4 +1,4 @@
-// Small shared building blocks for Paalvi Studio (accessible modal, badges, fields, states, toasts).
+// Small shared building blocks for Studio (accessible modal, badges, fields, states, toasts).
 import { AlertTriangle, Loader2, X } from 'lucide-react';
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 

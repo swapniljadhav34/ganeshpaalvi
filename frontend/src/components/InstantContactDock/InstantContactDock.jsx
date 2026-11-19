@@ -53,7 +53,7 @@ export default function InstantContactDock() {
   return (
     <motion.nav
       className={styles.dock}
-      aria-label="Contact Paalvi"
+      aria-label={brand?.name ? `Contact ${brand.name}` : "Contact us"}
       initial={{ y: 80, opacity: 0 }}
       animate={{ y: hidden ? 100 : 0, opacity: hidden ? 0 : 1 }}
       transition={{ type: 'spring', stiffness: 220, damping: 26 }}
@@ -68,7 +68,7 @@ export default function InstantContactDock() {
       </div>
       {brand.whatsapp && (
         <Magnetic className={styles.wa} strength={0.25} onClick={() => whatsapp({ buyerType: tier === 'wholesale' ? 'retailer' : 'shopper' })}
-          aria-label="Chat with Paalvi on WhatsApp">
+          aria-label="Chat on WhatsApp">
           <WhatsAppIcon size={26} />
           <span className={styles.waLabel}>Chat with us</span>
         </Magnetic>

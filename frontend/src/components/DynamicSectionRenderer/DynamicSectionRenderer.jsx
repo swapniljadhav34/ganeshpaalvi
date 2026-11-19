@@ -41,7 +41,7 @@ class SectionBoundary extends Component {
 
   componentDidCatch(error) {
     // eslint-disable-next-line no-console
-    console.warn('Paalvi: a homepage section failed to render and was skipped.', error);
+    console.warn('A homepage section failed to render and was skipped.', error);
   }
 
   render() {

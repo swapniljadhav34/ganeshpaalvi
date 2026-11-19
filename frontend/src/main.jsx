@@ -17,6 +17,7 @@ import './theme/global.css';
 
 import App from './App';
 import { SiteProvider } from './context/SiteContext';
+import { I18nProvider } from './i18n/I18n';
 import { SmoothScrollProvider } from './hooks/useSmoothScroll';
 
 const queryClient = new QueryClient({
@@ -34,9 +35,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <QueryClientProvider client={queryClient}>
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <SiteProvider>
-            <SmoothScrollProvider>
-              <App />
-            </SmoothScrollProvider>
+            <I18nProvider>
+              <SmoothScrollProvider>
+                <App />
+              </SmoothScrollProvider>
+            </I18nProvider>
           </SiteProvider>
         </BrowserRouter>
       </QueryClientProvider>

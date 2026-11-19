@@ -108,3 +108,18 @@ def contrast_ratio(fg, bg):
     a, b = _luminance(fg), _luminance(bg)
     hi, lo = max(a, b), min(a, b)
     return round((hi + 0.05) / (lo + 0.05), 2)
+
+
+def brand_name(default=""):
+    """The brand name from Brand & contact details — the ONLY source of the name (nothing hard-coded)."""
+    from .models import BrandSettings
+
+    try:
+        return BrandSettings.load().brand_name.strip() or default
+    except Exception:  # database not ready (first migrate)
+        return default
+
+
+def designer_title(request=None):
+    name = brand_name()
+    return f"{name} Designer" if name else "Designer"

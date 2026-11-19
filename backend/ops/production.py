@@ -56,6 +56,8 @@ def move_batch(batch_id, new_status, user=None, *, completed_quantity=None, wast
                 raise StockError("Wastage can't be negative.")
             batch.wastage_quantity = int(wastage_quantity)
 
+        if new_status == S.COMPLETED and not batch.item_id:
+            raise StockError("This batch's product was deleted, so it can only be cancelled.")
         if new_status == S.COMPLETED:
             qty = int(completed_quantity if completed_quantity is not None else batch.planned_quantity)
             if qty < 1:

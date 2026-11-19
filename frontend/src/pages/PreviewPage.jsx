@@ -83,7 +83,7 @@ export default function PreviewPage() {
 
   return (
     <>
-      <Helmet><meta name="robots" content="noindex, nofollow" /><title>Preview · Paalvi Studio</title></Helmet>
+      <Helmet><meta name="robots" content="noindex, nofollow" /><title>Preview</title></Helmet>
       {error && <p style={{ padding: 24, color: 'var(--color-danger)' }}>{error}</p>}
       {kind === 'hero' && item && (
         <>

@@ -193,7 +193,7 @@ function UgcItem({ u, brand }) {
   return (
     <HoverFx kind={fx.hover} className={styles.ugcItem} style={{ ...shape, aspectRatio: '1' }}>
       <a href={u.link || brand?.instagram || '#'} target="_blank" rel="noopener" className="pv-fill" style={{ display: 'block' }}>
-        <img src={u.image} alt={u.caption || 'Paalvi on Instagram'} loading="lazy" />
+        <img src={u.image} alt={u.caption || `${brand?.name || ''} on Instagram`.trim()} loading="lazy" />
         {u.caption && <span className={styles.ugcCap}>{u.caption}</span>}
       </a>
     </HoverFx>
@@ -271,9 +271,10 @@ export function Gallery({ section }) {
 // --- New: Big Moving Text ---
 export function MarqueeText({ section }) {
   const fx = useFx();
+  const brandName = useSite().brand?.name;
   const words = (Array.isArray(section.items) && section.items.length
     ? section.items.map((w) => (typeof w === 'string' ? w : w?.text || w?.name)).filter(Boolean)
-    : [section.title || 'Paalvi']);
+    : [section.title || brandName || '']);
   const row = (key, rev) => (
     <div className={styles.bigMarquee} aria-hidden="true" key={key}>
       <div className={`${styles.bigTrack} ${rev ? styles.bigTrackRev : ''}`} style={{ animationDuration: `${45 * fx.speed}s` }}>

@@ -53,7 +53,7 @@ export function SiteProvider({ children }) {
   const whatsapp = useCallback(
     (opts = {}) => {
       if (!brand?.whatsapp) return;
-      const message = buildWhatsAppMessage({ tier, siteUrl: brand.site_url, ...opts });
+      const message = buildWhatsAppMessage({ tier, siteUrl: brand.site_url, brandName: brand.name, ...opts });
       openWhatsApp(brand.whatsapp, message, {
         product: opts.product?.slug,
         variant_id: opts.variants?.[0]?.id,

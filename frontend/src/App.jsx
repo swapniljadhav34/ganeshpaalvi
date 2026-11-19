@@ -3,7 +3,8 @@
 //  /p/:slug    product — opens as a modal over the catalog when clicked inside the site,
 //              or as a full page when opened directly / shared (good for SEO & WhatsApp previews).
 //  /privacy    privacy policy
-//  /studio/*   Paalvi Studio for staff (separate, lazily-loaded app — visitors never download it)
+//  /track      customer order tracking (/track/<link> from the receipt)
+//  /studio/*   Studio for staff (separate, lazily-loaded app — visitors never download it)
 //  /__preview  the admin's live preview panel (not for visitors)
 import { AnimatePresence, motion } from 'framer-motion';
 import { RefreshCw } from 'lucide-react';
@@ -21,6 +22,7 @@ import SiteEffects from './fx/SiteEffects';
 import HomePage from './pages/HomePage';
 import NotFound from './pages/NotFound';
 import PrivacyPage from './pages/PrivacyPage';
+import TrackPage from './pages/TrackPage';
 import ProductPage from './pages/ProductPage';
 import { usePageTracking } from './utils/analytics';
 import { readStore, writeStore } from './utils/storage';
@@ -32,10 +34,10 @@ const ease = [0.22, 1, 0.36, 1];
 
 /** Loading screen. Its style is remembered from the last visit (chosen in Site Design Studio). */
 function Splash({ kind }) {
-  const word = 'PAALVI';
+  const word = (readStore('site:brand-name', '') || '').toUpperCase();
   const exit = kind === 'curtain' ? { y: '-100%', transition: { duration: 0.9, ease } } : { opacity: 0, transition: { duration: 0.4 } };
   return (
-    <motion.div className="pv-splash" exit={exit} aria-busy="true" aria-label="Loading Paalvi">
+    <motion.div className="pv-splash" exit={exit} aria-busy="true" aria-label="Loading">
       {kind === 'letters' ? (
         <p className="pv-splash-word">
           {word.split('').map((ch, i) => (
@@ -58,7 +60,7 @@ function Offline({ onRetry }) {
   return (
     <div style={{ minHeight: '100svh', display: 'grid', placeItems: 'center', textAlign: 'center', padding: 24 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center' }}>
-        <p style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', letterSpacing: '0.2em' }}>PAALVI</p>
+        <p style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', letterSpacing: '0.2em' }}>{(readStore('site:brand-name', '') || '').toUpperCase()}</p>
         <p className="t-muted">We couldn't connect just now. Please check your internet and try again.</p>
         <button type="button" className="pv-btn" onClick={onRetry}><RefreshCw size={16} strokeWidth={1.5} /> Try again</button>
       </div>
@@ -75,6 +77,7 @@ export default function App() {
 
   useEffect(() => {
     if (data?.design?.page_loader) writeStore('paalvi:loader', data.design.page_loader);
+    if (data?.brand) writeStore('site:brand-name', data.brand.name || '');
   }, [data]);
 
   // Scroll to top on real page changes (not when opening the product modal).
@@ -110,6 +113,8 @@ export default function App() {
             <Route path="/" element={<main><HomePage /></main>} />
             <Route path="/p/:slug" element={<ProductPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/track" element={<TrackPage />} />
+            <Route path="/track/:token" element={<TrackPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <AnimatePresence>

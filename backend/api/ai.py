@@ -137,7 +137,7 @@ def product_context(products):
             f"  Category: {p.category.name} | MRP ₹{p.mrp:.0f} | Retail ₹{p.retail_price:.0f} | Wholesale {wholesale}\n"
             f"  Badges: {badges} | Suitable for: {', '.join(p.suitable_for or []) or '—'} | Stock: {p.get_stock_status_display()}\n"
             f"  Variants: {variants} | Packs: {packs}\n"
-            f"  Benefits (as stated by Paalvi): {' / '.join(p.key_benefits or []) or '—'}"
+            f"  Benefits (as stated by the brand): {' / '.join(p.key_benefits or []) or '—'}"
         )
     return "\n".join(lines) or "(no matching products)"
 
@@ -184,7 +184,7 @@ def fallback_reply(products, intent, brand):
         parts.append("Since you mentioned discomfort, it's best to see a dentist first — they can check what's going on.")
     if products:
         names = ", ".join(p.title for p in products[:3])
-        parts.append(f"Here are a few Paalvi essentials that may suit you: {names}. Tap a card to see details.")
+        parts.append(f"Here are a few {brand.brand_name + ' ' if brand.brand_name else ''}essentials that may suit you: {names}. Tap a card to see details.")
     else:
         parts.append("I couldn't find a close match just now.")
     parts.append("For personal advice or bulk pricing, our team is happy to help on WhatsApp.")

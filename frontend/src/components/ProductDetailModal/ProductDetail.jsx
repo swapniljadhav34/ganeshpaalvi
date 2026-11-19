@@ -100,7 +100,7 @@ export default function ProductDetail({ product: p, layout = 'modal', headingId 
     sku: p.sku,
     gtin13: p.ean || undefined,
     image: (p.images || []).map((i) => i.full || i.medium).filter(Boolean),
-    brand: { '@type': 'Brand', name: brand?.name || 'Paalvi' },
+    brand: brand?.name ? { '@type': 'Brand', name: brand.name } : undefined,
     offers: {
       '@type': 'Offer', priceCurrency: 'INR', price: p.retail_price, url: p.url,
       availability: p.stock_status === 'out_of_stock' ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
@@ -111,7 +111,7 @@ export default function ProductDetail({ product: p, layout = 'modal', headingId 
     <div className={`${styles.detail} ${layout === 'page' ? styles.detailPage : ''}`}>
       {!partial && (
         <Helmet>
-          <title>{`${p.seo_title || p.title} — ${formatINR(p.retail_price)} | ${brand?.name || 'Paalvi'}`}</title>
+          <title>{`${p.seo_title || p.title} — ${formatINR(p.retail_price)}${brand?.name ? ` | ${brand.name}` : ''}`}</title>
           <meta name="description" content={p.seo_description || p.subtitle} />
           <meta property="og:title" content={p.seo_title || p.title} />
           <meta property="og:description" content={p.seo_description || p.subtitle} />

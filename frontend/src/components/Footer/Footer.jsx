@@ -15,6 +15,7 @@ import { FacebookIcon, InstagramIcon, WhatsAppIcon, XIcon } from '../ui/BrandIco
 import Icon from '../ui/Icon';
 import styles from './Footer.module.css';
 import { useCalm } from '../../hooks/useCalm';
+import { useT } from '../../i18n/I18n';
 
 const FOOTER_BG = {
   ink: 'var(--color-ink)', light: 'var(--color-surface)', primary: 'var(--color-primary-soft)',
@@ -129,6 +130,7 @@ function GiantWordmark({ text, size, anim }) {
 
 export default function Footer() {
   const { brand, data, design, motionPaused, setMotionPaused } = useSite();
+  const t = useT();
   if (!brand) return null;
   const year = new Date().getFullYear();
   const columns = data?.footer?.length ? data.footer : [{ title: 'Shop', kind: 'categories', links: [] }, { title: 'Talk to us', kind: 'contact', links: [] }];
@@ -159,9 +161,10 @@ export default function Footer() {
         <div className={styles.legal}>
           <p>© {year} {brand.name}. {design.footer_legal_text}</p>
           <p className={styles.legalLinks}>
-            <Link to="/privacy">Privacy policy</Link>
+            <Link to="/privacy">{t('footer.privacy')}</Link>
+            <Link to="/track">{t('footer.track')}</Link>
             <button type="button" aria-pressed={motionPaused} onClick={() => setMotionPaused(!motionPaused)}>
-              {motionPaused ? 'Play animations' : 'Pause animations'}
+              {motionPaused ? t('footer.play') : t('footer.pause')}
             </button>
           </p>
           <p className={styles.legalMeta}>

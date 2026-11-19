@@ -25,6 +25,7 @@ from django.utils import timezone
 from catalog.models import Badge, Category, PackageOption, Product, ProductVariant
 from leads.models import LeadInquiry
 from ops.api import analytics_router, staff_router
+from ops.api_orders import orders_public_router
 from storefront.models import BrandSettings
 from storefront.utils import BOOTSTRAP_CACHE_KEY, catalog_version
 
@@ -34,9 +35,10 @@ from .ratelimit import rate_limit
 from .search import filter_products
 
 log = logging.getLogger("paalvi")
-api = NinjaAPI(title="Paalvi API", version="1.0", docs_url="/docs" if settings.DEBUG else None)
+api = NinjaAPI(title="Store API", version="1.0", docs_url="/docs" if settings.DEBUG else None)
 api.add_router("/staff", staff_router)
 api.add_router("/analytics", analytics_router)
+api.add_router("/orders", orders_public_router)
 PAGE_SIZE = 24
 DETAIL_CACHE_SECONDS = 300
 
@@ -288,7 +290,7 @@ def inquiry(request, payload: InquiryIn):
     if settings.LEAD_NOTIFY_EMAILS and payload.source != "whatsapp":
         try:
             send_mail(
-                subject=f"New Paalvi lead: {lead}",
+                subject=f"New website lead: {lead}",
                 message=(f"{lead.get_buyer_type_display()} · {lead.city}\nPhone: {lead.phone}\nEmail: {lead.email}\n"
                          f"Product: {product or '—'} · Qty: {lead.quantity or '—'} · {lead.get_tier_display()}\n\n{lead.message}"),
                 from_email=settings.DEFAULT_FROM_EMAIL,

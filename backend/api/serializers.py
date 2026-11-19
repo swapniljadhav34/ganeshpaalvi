@@ -170,7 +170,23 @@ def brand_payload(request, b: BrandSettings):
         "privacy_policy": b.privacy_policy,
         "seo": {"title": b.default_seo_title, "description": b.default_seo_description, "image": media_url(request, b.og_share_image)},
         "site_url": settings.SITE_URL,
+        "shop_title": b.shop_title,
+        "shop_intro": b.shop_intro,
+        "search_placeholder": b.search_placeholder,
+        "i18n": i18n_payload(b),
     }
+
+
+def i18n_payload(b):
+    """Languages on offer + the Designer's overrides ({lang: {key: text}}); built-in words ship with the site."""
+    from storefront.languages import languages_payload
+    from storefront.models import UiTranslation
+
+    overrides = {}
+    for lang, key, text in UiTranslation.objects.values_list("language", "key", "text"):
+        overrides.setdefault(lang, {})[key] = text
+    return {"default": b.default_language, "picker": b.show_language_picker, "languages": languages_payload(),
+            "overrides": overrides}
 
 
 def theme_payload():

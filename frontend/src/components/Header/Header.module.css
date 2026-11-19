@@ -162,3 +162,12 @@
   border: 0; border-radius: var(--radius-md); background: transparent; font-weight: 600; cursor: pointer;
 }
 .seeAll:hover { background: var(--color-primary-soft); }
+.iconBtn:focus-within { outline: 2px solid var(--color-primary, currentColor); outline-offset: 2px; }
+
+/* Phones: long brand names and the language switch must never push the header off-screen. */
+@media (max-width: 575.98px) {
+  .brand { flex-shrink: 1; min-width: 0; overflow: hidden; }
+  .wordmark { font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .actions { flex-shrink: 0; }
+  .iconBtn { width: 40px; height: 40px; }
+}

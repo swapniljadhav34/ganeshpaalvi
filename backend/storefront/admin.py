@@ -15,7 +15,9 @@ from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action, display
 from unfold.widgets import UnfoldAdminColorInputWidget
 
+from .utils import brand_name
 from .models import (
+    UiTranslation,
     ActiveTheme,
     AIAssistantConfig,
     BrandSettings,
@@ -132,7 +134,7 @@ class ThemePresetAdmin(ModelAdmin):
             """
 <div id="paalvi-theme-preview" style="border-radius:20px;padding:28px;max-width:520px;background:{surface};color:{text};
      border:1px solid rgba(0,0,0,.08);font-family:Georgia,serif">
-  <div style="font-size:11px;letter-spacing:.2em;color:{muted};font-family:system-ui">PAALVI</div>
+  <div style="font-size:11px;letter-spacing:.2em;color:{muted};font-family:system-ui">{brand}</div>
   <div style="font-size:30px;line-height:1.1;margin:10px 0">Everyday essentials, elevated.</div>
   <div style="font-family:system-ui;font-size:14px;color:{muted}">Soft bamboo bristles · Fluoride-free</div>
   <div style="display:flex;gap:10px;margin-top:18px;font-family:system-ui">
@@ -157,7 +159,7 @@ class ThemePresetAdmin(ModelAdmin):
 }})();
 </script>""",
             surface=p.surface, text=p.text, muted=p.text_muted, primary=p.primary, secondary=p.secondary,
-            elevated=p.surface_elevated, accent=p.accent, warnings=warn_html,
+            elevated=p.surface_elevated, accent=p.accent, warnings=warn_html, brand=brand_name().upper(),
             fields=mark_safe(json.dumps(COLOR_FIELDS)),
         )
 
@@ -398,3 +400,11 @@ class AIAssistantConfigAdmin(SingletonAdmin):
                            "and is told never to invent prices or make medical claims.",
         }),
     )
+
+
+@admin.register(UiTranslation)
+class UiTranslationAdmin(ModelAdmin):
+    list_display = ["language", "key", "text"]
+    list_filter = ["language"]
+    search_fields = ["key", "text"]
+    list_editable = ["text"]

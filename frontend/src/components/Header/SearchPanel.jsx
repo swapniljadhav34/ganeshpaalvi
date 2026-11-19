@@ -7,9 +7,13 @@ import { fetchProducts } from '../../api/client';
 import { useSmoothScroll } from '../../hooks/useSmoothScroll';
 import { springs } from '../../theme/motion';
 import Price from '../ui/Price';
+import { useSite } from '../../context/SiteContext';
+import { useT } from '../../i18n/I18n';
 import styles from './Header.module.css';
 
 export default function SearchPanel({ open, onClose }) {
+  const t = useT();
+  const { brand } = useSite();
   const [q, setQ] = useState('');
   const [state, setState] = useState({ loading: false, items: [], total: 0, error: '' });
   const inputRef = useRef(null);
@@ -101,13 +105,13 @@ export default function SearchPanel({ open, onClose }) {
                 ref={inputRef}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Search brushes, pastes, ‘fluoride-free’…"
-                aria-label="Search products"
+                placeholder={brand?.search_placeholder || t('search.placeholder')}
+                aria-label={t('search.open')}
                 className={styles.searchInput}
                 enterKeyHint="search"
               />
               {state.loading && <LoaderCircle className={styles.spin} size={18} strokeWidth={1.5} aria-label="Searching" />}
-              <button type="button" className={styles.iconGhost} onClick={onClose} aria-label="Close search">
+              <button type="button" className={styles.iconGhost} onClick={onClose} aria-label={t('search.close')}>
                 <X size={20} strokeWidth={1.5} />
               </button>
             </form>

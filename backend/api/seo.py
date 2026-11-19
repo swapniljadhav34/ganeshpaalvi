@@ -26,7 +26,7 @@ _INDEX = {"mtime": None, "html": ""}
 def robots_txt(request):
     # A custom ADMIN_URL is a secret — never advertise it in robots.txt.
     admin = ["Disallow: /admin/"] if settings.ADMIN_URL == "admin/" else []
-    lines = ["User-agent: *", *admin, "Disallow: /api/", "Disallow: /studio", "Disallow: /__preview", "Allow: /",
+    lines = ["User-agent: *", *admin, "Disallow: /api/", "Disallow: /studio", "Disallow: /__preview", "Disallow: /track", "Allow: /",
              f"Sitemap: {settings.SITE_URL}/sitemap.xml"]
     return HttpResponse("\n".join(lines) + "\n", content_type="text/plain")
 
@@ -52,14 +52,14 @@ def _json_script(data, el_id=None, kind="application/json"):
     return f'<script type="{kind}"{attr}>{payload}</script>'
 
 
-def _meta_tags(title, description, image, url, extra="", robots=""):
+def _meta_tags(title, description, image, url, extra="", robots="", site_name=""):
     t, d = escape(title), escape(description or "")
     img = f'<meta property="og:image" content="{escape(image)}"><meta name="twitter:image" content="{escape(image)}">' if image else ""
     robots_tag = f'<meta name="robots" content="{robots}">' if robots else ""
     return (
         f"<title>{t}</title><meta name=\"description\" content=\"{d}\">{robots_tag}"
         f'<meta property="og:title" content="{t}"><meta property="og:description" content="{d}">'
-        f'<meta property="og:url" content="{escape(url)}"><meta property="og:site_name" content="Paalvi">'
+        f'<meta property="og:url" content="{escape(url)}"><meta property="og:site_name" content="{escape(site_name)}">'
         f'<meta name="twitter:card" content="summary_large_image">{img}<link rel="canonical" href="{escape(url)}">{extra}'
     )
 
@@ -85,7 +85,7 @@ def _fallback(title, lines):
 def spa_view(request, slug=None, private=False):
     html = _index_html()
     brand = BrandSettings.load()
-    title, desc, url = brand.default_seo_title, brand.default_seo_description, settings.SITE_URL + "/"
+    title, desc, url = brand.default_seo_title or brand.brand_name or "Shop", brand.default_seo_description, settings.SITE_URL + "/"
     image = request.build_absolute_uri(brand.og_share_image.url) if brand.og_share_image else ""
     extra = '<meta property="og:type" content="website">'
     status, robots = 200, "noindex, nofollow" if private else ""
@@ -94,7 +94,7 @@ def spa_view(request, slug=None, private=False):
     if slug:
         p = Product.objects.live().select_related("category").prefetch_related("images").filter(slug=slug).first()
         if p:
-            title = f"{p.seo_title or p.title} — ₹{p.retail_price:.0f} | {brand.brand_name}"
+            title = f"{p.seo_title or p.title} — ₹{p.retail_price:.0f}" + (f" | {brand.brand_name}" if brand.brand_name else "")
             desc = p.seo_description or p.subtitle or p.description[:155]
             url = p.get_absolute_url()
             imgs = list(p.images.all())
@@ -118,10 +118,10 @@ def spa_view(request, slug=None, private=False):
                                        p.category.name if p.category_id else "", p.description[:600]])
         else:
             status, robots = 404, "noindex"
-            title, desc = f"Not found | {brand.brand_name}", "This product isn't available."
+            title, desc = "Not found" + (f" | {brand.brand_name}" if brand.brand_name else ""), "This product isn't available."
             root = _fallback("This product isn't available", ["It may have been renamed or removed."])
 
-    tags = _meta_tags(title, desc, image, url, extra, robots)
+    tags = _meta_tags(title, desc, image, url, extra, robots, site_name=brand.brand_name)
     if not private:  # inline the homepage data + preload the hero picture
         from .api import build_bootstrap
 
@@ -160,4 +160,12 @@ def spa_asset(request, path):
     resp = FileResponse(open(target, "rb"))
     if path.startswith("assets/"):
         resp["Cache-Control"] = "public, max-age=31536000, immutable"
+    return resp
+
+
+def track_view(request, token=""):
+    """Order tracking pages: full site (with homepage data), but never indexed — the link is private."""
+    resp = spa_view(request)
+    resp["X-Robots-Tag"] = "noindex, nofollow"
+    resp["Referrer-Policy"] = "no-referrer"  # don't leak the tracking link to other sites
     return resp

@@ -245,3 +245,45 @@ textarea.st-input { min-height: 70px; resize: vertical; }
 .st-login-card { width: min(100%, 400px); display: flex; flex-direction: column; gap: 14px; padding: 28px; border-radius: 20px; background: var(--st-card);
   border: 1px solid var(--st-line); box-shadow: 0 30px 80px -40px rgba(20, 24, 31, 0.4); }
 .st-login-card h1 { font-family: var(--font-display); font-size: 2rem; margin: 0; }
+
+/* ---- Order book, Team & roles, System ---------------------------------- */
+.st-btn--secondary { background: var(--st-brand-soft); color: var(--st-brand); border-color: transparent; }
+.st-btn--secondary:hover { border-color: var(--st-brand); }
+.st-h3 { font-size: 1rem; margin: 18px 0 8px; display: flex; align-items: center; gap: 8px; }
+.st-actions--wrap { flex-wrap: wrap; margin-bottom: 12px; }
+.st-input--auto { width: auto; min-width: 140px; }
+.st-input--num { width: 96px; text-align: right; }
+.st-icon--sm { width: 24px; height: 24px; }
+.st-row-link { cursor: pointer; }
+.st-row-link:hover td, .st-row-link:focus-visible td { background: var(--st-brand-soft); }
+.st-row-link:focus-visible { outline: 2px solid var(--st-brand); outline-offset: -2px; }
+.st-order-top { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+.st-move { margin: 4px 0 16px; border-color: var(--st-brand); }
+.st-timeline { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; border-inline-start: 2px solid var(--st-line); padding-inline-start: 14px; }
+.st-pick-list li.st-muted { padding: 6px 2px; }
+.st-steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.st-ok { color: var(--st-good); vertical-align: -3px; }
+.st-bad { color: var(--st-critical); vertical-align: -3px; }
+.st-cards--3 { margin: 16px 0; }
+@media (min-width: 992px) { .st-cards--3 { grid-template-columns: repeat(3, 1fr); } }
+.st-card--danger { border-color: var(--st-critical-bg); }
+.st-warn { display: flex; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--st-warn-bg); color: var(--st-ink); margin-bottom: 14px; font-size: 0.9rem; }
+.st-warn p { margin: 0 0 6px; }
+.st-warn svg { flex: none; color: var(--st-warn); margin-top: 2px; }
+.st-permgroup { border: 1px solid var(--st-line); border-radius: 12px; padding: 10px 14px; margin: 0 0 10px; display: flex; flex-direction: column; gap: 6px; }
+.st-permgroup legend { font-weight: 600; font-size: 0.85rem; padding: 0 6px; }
+.st-check.is-locked { opacity: 0.6; cursor: not-allowed; }
+
+/* Permission matrix: permissions down the side, roles across the top; scrolls sideways on phones. */
+.st-matrix-wrap { overflow: auto; max-height: 70vh; border: 1px solid var(--st-line); border-radius: 14px; background: var(--st-card); }
+.st-matrix { border-collapse: separate; border-spacing: 0; font-size: 0.85rem; min-width: 100%; }
+.st-matrix th, .st-matrix td { padding: 8px 10px; border-bottom: 1px solid var(--st-line); text-align: center; background: var(--st-card); }
+.st-matrix thead th { position: sticky; top: 0; z-index: 2; vertical-align: bottom; min-width: 96px; }
+.st-matrix thead th span { display: block; font-weight: 600; }
+.st-matrix thead th small { display: block; font-weight: 400; }
+.st-matrix tbody th[scope="row"], .st-matrix thead th:first-child { position: sticky; left: 0; z-index: 1; text-align: left; font-weight: 400; min-width: 220px; max-width: 320px; }
+.st-matrix thead th:first-child { z-index: 3; }
+.st-matrix-group th { background: var(--st-bg) !important; text-align: left !important; font-weight: 700 !important; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.st-matrix input { width: 18px; height: 18px; accent-color: var(--st-brand); cursor: pointer; }
+.st-matrix input:disabled { cursor: not-allowed; }
+.st-modal .st-list li { display: flex; align-items: center; gap: 10px; }

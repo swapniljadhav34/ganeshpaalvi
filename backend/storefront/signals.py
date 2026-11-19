@@ -10,7 +10,7 @@ from .utils import clear_site_cache
 
 WATCHED = {
     "storefront": {"brandsettings", "themepreset", "activetheme", "festivalschedule", "heroslide", "pagesection", "aiassistantconfig",
-                   "heromedia", "sectionmedia", "sitedesign", "navlink", "footercolumn", "footerlink"},
+                   "heromedia", "sectionmedia", "sitedesign", "navlink", "footercolumn", "footerlink", "uitranslation"},
     "catalog": {"category", "badge", "ingredient", "product", "productimage", "productvariant", "packageoption"},
 }
 

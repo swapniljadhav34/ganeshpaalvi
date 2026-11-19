@@ -55,6 +55,8 @@ SITE_URL = os.getenv("SITE_URL", "http://localhost:5173" if DEBUG else "https://
 MEDIA_BASE_URL = os.getenv("MEDIA_BASE_URL", SITE_URL).rstrip("/")
 # Admin address. Moving it away from /admin/ cuts automated login attacks.
 ADMIN_URL = os.getenv("ADMIN_URL", "admin/").strip("/") + "/"
+# Where Studio and the Designer live. In development they run on Django (:8000) while the website runs on Vite (:5173).
+STAFF_URL = os.getenv("STAFF_URL", "http://127.0.0.1:8000" if DEBUG else SITE_URL).rstrip("/")
 
 # Which request header holds the real visitor IP (set by YOUR proxy, never by the visitor):
 #   HTTP_X_REAL_IP          nginx (deploy/setup.sh, docker)        — default
@@ -103,7 +105,9 @@ MIDDLEWARE = [
 ]
 
 # --- Login protection: 5 wrong passwords for a username from one IP → locked for 1 hour ---
-AUTHENTICATION_BACKENDS = ["axes.backends.AxesStandaloneBackend", "django.contrib.auth.backends.ModelBackend"]
+# RolePermissionBackend: the Designer workspace (this admin) reads the same permission matrix as Studio.
+AUTHENTICATION_BACKENDS = ["axes.backends.AxesStandaloneBackend", "django.contrib.auth.backends.ModelBackend",
+                           "ops.backends.RolePermissionBackend"]
 AXES_FAILURE_LIMIT = int(os.getenv("AXES_FAILURE_LIMIT", "5"))
 AXES_COOLOFF_TIME = timedelta(hours=1)
 AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
@@ -291,6 +295,7 @@ RATE_LIMIT_AI_PER_MIN = int(os.getenv("RATE_LIMIT_AI_PER_MIN", "15"))
 RATE_LIMIT_INQUIRY_PER_MIN = int(os.getenv("RATE_LIMIT_INQUIRY_PER_MIN", "12"))
 RATE_LIMIT_CATALOG_PER_MIN = int(os.getenv("RATE_LIMIT_CATALOG_PER_MIN", "180"))
 RATE_LIMIT_TRACK_PER_MIN = int(os.getenv("RATE_LIMIT_TRACK_PER_MIN", "120"))
+RATE_LIMIT_TRACK_ORDER_PER_MIN = int(os.getenv("RATE_LIMIT_TRACK_ORDER_PER_MIN", "20"))  # public order tracking (per IP)
 RATE_LIMIT_LOGIN_PER_MIN = int(os.getenv("RATE_LIMIT_LOGIN_PER_MIN", "10"))
 
 # --- Inventory & analytics -------------------------------------------------------
@@ -306,9 +311,10 @@ if SENTRY_DSN:
 
 # --- Admin look & feel (django-unfold) --------------------------------------
 UNFOLD = {
-    "SITE_TITLE": "Paalvi Studio",
-    "SITE_HEADER": "Paalvi Studio",
-    "SITE_SUBHEADER": "Manage your showroom",
+    # Titles follow the brand name set in Brand & contact details (nothing hard-coded).
+    "SITE_TITLE": "storefront.utils.designer_title",
+    "SITE_HEADER": "storefront.utils.designer_title",
+    "SITE_SUBHEADER": "Design your website",
     "SITE_SYMBOL": "spa",
     "SITE_URL": SITE_URL,
     "SHOW_HISTORY": True,
@@ -340,7 +346,7 @@ UNFOLD = {
                 "collapsible": True,
                 "items": [
                     {"title": "Brand & contact details", "icon": "storefront",
-                     "link": reverse_lazy("admin:storefront_brandsettings_changelist")},
+                     "link": reverse_lazy("admin:storefront_brandsettings_changelist"), "permission": "ops.roles.can_design"},
                 ],
             },
             {
@@ -348,9 +354,9 @@ UNFOLD = {
                 "collapsible": True,
                 "items": [
                     {"title": "Active theme & schedule", "icon": "palette",
-                     "link": reverse_lazy("admin:storefront_activetheme_changelist")},
+                     "link": reverse_lazy("admin:storefront_activetheme_changelist"), "permission": "ops.roles.can_design"},
                     {"title": "Theme presets", "icon": "format_paint",
-                     "link": reverse_lazy("admin:storefront_themepreset_changelist")},
+                     "link": reverse_lazy("admin:storefront_themepreset_changelist"), "permission": "ops.roles.can_design"},
                 ],
             },
             {
@@ -358,11 +364,13 @@ UNFOLD = {
                 "collapsible": True,
                 "items": [
                     {"title": "Shapes, motion, header & footer", "icon": "animation",
-                     "link": reverse_lazy("admin:storefront_sitedesign_changelist")},
+                     "link": reverse_lazy("admin:storefront_sitedesign_changelist"), "permission": "ops.roles.can_design"},
                     {"title": "Header menu links", "icon": "menu",
-                     "link": reverse_lazy("admin:storefront_navlink_changelist")},
+                     "link": reverse_lazy("admin:storefront_navlink_changelist"), "permission": "ops.roles.can_design"},
+                    {"title": "Translations (Indian languages)", "icon": "translate",
+                     "link": reverse_lazy("admin:storefront_uitranslation_changelist"), "permission": "ops.roles.can_design"},
                     {"title": "Footer columns & links", "icon": "view_column",
-                     "link": reverse_lazy("admin:storefront_footercolumn_changelist")},
+                     "link": reverse_lazy("admin:storefront_footercolumn_changelist"), "permission": "ops.roles.can_design"},
                 ],
             },
             {
@@ -370,9 +378,9 @@ UNFOLD = {
                 "collapsible": True,
                 "items": [
                     {"title": "Hero slides", "icon": "movie",
-                     "link": reverse_lazy("admin:storefront_heroslide_changelist")},
+                     "link": reverse_lazy("admin:storefront_heroslide_changelist"), "permission": "ops.roles.can_design"},
                     {"title": "Page sections", "icon": "view_agenda",
-                     "link": reverse_lazy("admin:storefront_pagesection_changelist")},
+                     "link": reverse_lazy("admin:storefront_pagesection_changelist"), "permission": "ops.roles.can_design"},
                 ],
             },
             {
@@ -380,17 +388,17 @@ UNFOLD = {
                 "collapsible": True,
                 "items": [
                     {"title": "Products", "icon": "inventory_2",
-                     "link": reverse_lazy("admin:catalog_product_changelist")},
+                     "link": reverse_lazy("admin:catalog_product_changelist"), "permission": "ops.roles.can_edit_catalog"},
                     {"title": "Categories", "icon": "category",
-                     "link": reverse_lazy("admin:catalog_category_changelist")},
+                     "link": reverse_lazy("admin:catalog_category_changelist"), "permission": "ops.roles.can_edit_catalog"},
                     {"title": "Ingredients", "icon": "eco",
-                     "link": reverse_lazy("admin:catalog_ingredient_changelist")},
+                     "link": reverse_lazy("admin:catalog_ingredient_changelist"), "permission": "ops.roles.can_edit_catalog"},
                     {"title": "Badges (free-from, vegan…)", "icon": "verified",
-                     "link": reverse_lazy("admin:catalog_badge_changelist")},
+                     "link": reverse_lazy("admin:catalog_badge_changelist"), "permission": "ops.roles.can_edit_catalog"},
                     {"title": "Variants (all products)", "icon": "tune",
-                     "link": reverse_lazy("admin:catalog_productvariant_changelist")},
+                     "link": reverse_lazy("admin:catalog_productvariant_changelist"), "permission": "ops.roles.can_edit_catalog"},
                     {"title": "Pack sizes (all products)", "icon": "package_2",
-                     "link": reverse_lazy("admin:catalog_packageoption_changelist")},
+                     "link": reverse_lazy("admin:catalog_packageoption_changelist"), "permission": "ops.roles.can_edit_catalog"},
                 ],
             },
             {
@@ -398,7 +406,7 @@ UNFOLD = {
                 "collapsible": True,
                 "items": [
                     {"title": "All enquiries", "icon": "contact_phone",
-                     "link": reverse_lazy("admin:leads_leadinquiry_changelist")},
+                     "link": reverse_lazy("admin:leads_leadinquiry_changelist"), "permission": "ops.roles.can_see_leads"},
                 ],
             },
             {
@@ -406,38 +414,38 @@ UNFOLD = {
                 "collapsible": True,
                 "items": [
                     {"title": "Care Guide settings", "icon": "smart_toy",
-                     "link": reverse_lazy("admin:storefront_aiassistantconfig_changelist")},
+                     "link": reverse_lazy("admin:storefront_aiassistantconfig_changelist"), "permission": "ops.roles.can_design"},
                 ],
             },
             {
                 "title": "Operations",
                 "collapsible": True,
                 "items": [
-                    {"title": "Open Paalvi Studio ↗", "icon": "open_in_new", "link": f"{SITE_URL}/studio"},
+                    {"title": "Open Studio ↗", "icon": "open_in_new", "link": f"{STAFF_URL}/studio", "permission": "ops.roles.is_admin"},
                     {"title": "Stock items", "icon": "inventory",
-                     "link": reverse_lazy("admin:ops_inventoryitem_changelist")},
+                     "link": reverse_lazy("admin:ops_inventoryitem_changelist"), "permission": "ops.roles.is_admin"},
                     {"title": "Stock movement log", "icon": "history",
-                     "link": reverse_lazy("admin:ops_stockmovement_changelist")},
+                     "link": reverse_lazy("admin:ops_stockmovement_changelist"), "permission": "ops.roles.is_admin"},
                     {"title": "Production batches", "icon": "precision_manufacturing",
-                     "link": reverse_lazy("admin:ops_productionbatch_changelist")},
+                     "link": reverse_lazy("admin:ops_productionbatch_changelist"), "permission": "ops.roles.is_admin"},
                     {"title": "Invoices", "icon": "receipt_long",
-                     "link": reverse_lazy("admin:ops_invoice_changelist")},
+                     "link": reverse_lazy("admin:ops_invoice_changelist"), "permission": "ops.roles.is_admin"},
                     {"title": "Expenses", "icon": "payments",
-                     "link": reverse_lazy("admin:ops_expense_changelist")},
+                     "link": reverse_lazy("admin:ops_expense_changelist"), "permission": "ops.roles.is_admin"},
                     {"title": "Inventory settings", "icon": "tune",
-                     "link": reverse_lazy("admin:ops_inventorysettings_changelist")},
+                     "link": reverse_lazy("admin:ops_inventorysettings_changelist"), "permission": "ops.roles.is_admin"},
                 ],
             },
             {
                 "title": "Team",
                 "collapsible": True,
                 "items": [
-                    {"title": "Staff roles (Studio access)", "icon": "badge",
-                     "link": reverse_lazy("admin:ops_staffprofile_changelist")},
+                    {"title": "People & roles", "icon": "badge",
+                     "link": reverse_lazy("admin:ops_staffprofile_changelist"), "permission": "ops.roles.is_admin"},
                     {"title": "Staff accounts", "icon": "person",
-                     "link": reverse_lazy("admin:auth_user_changelist")},
+                     "link": reverse_lazy("admin:auth_user_changelist"), "permission": "ops.roles.is_admin"},
                     {"title": "Permission groups", "icon": "group",
-                     "link": reverse_lazy("admin:auth_group_changelist")},
+                     "link": reverse_lazy("admin:auth_group_changelist"), "permission": "ops.roles.is_admin"},
                 ],
             },
         ],

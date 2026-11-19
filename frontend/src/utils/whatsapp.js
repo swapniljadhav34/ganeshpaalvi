@@ -13,16 +13,16 @@ const BUYER_LABELS = {
 };
 
 /**
- * Paalvi WhatsApp message format (kept short so it reads well in the chat):
+ * WhatsApp message format (kept short so it reads well in the chat):
  *
- *   Hi Paalvi 👋 I'd like to enquire about:
+ *   Hi <brand> 👋 I'd like to enquire about:
  *   🪥 Bamboo Charcoal Toothbrush
  *   SKU: PAL-001 · Bristle: Soft · Colour: Mint
  *   Pack: Carton of 144 × 2
  *   Price seen: ₹72/pc (Wholesale) · MOQ 144
  *   Est. total: ₹20,736
  *   I'm a: Hotel · Pune
- *   🔗 https://paalvi.in/p/bamboo-charcoal-toothbrush
+ *   🔗 https://<your-site>/p/bamboo-charcoal-toothbrush
  */
 export function buildWhatsAppMessage({
   product,
@@ -35,17 +35,19 @@ export function buildWhatsAppMessage({
   buyerType,
   city,
   note,
-  siteUrl = typeof window !== 'undefined' ? window.location.origin : 'https://paalvi.in',
+  siteUrl = typeof window !== 'undefined' ? window.location.origin : '',
+  brandName = '',
 } = {}) {
   const lines = [];
+  const hi = brandName ? `Hi ${brandName} 👋` : 'Hi 👋';
   if (!product) {
     lines.push(
       tier === 'wholesale' || (buyerType && buyerType !== 'shopper')
-        ? "Hi Paalvi 👋 I'd like bulk / wholesale pricing."
-        : "Hi Paalvi 👋 I'd love some help choosing my essentials.",
+        ? `${hi} I'd like bulk / wholesale pricing.`
+        : `${hi} I'd love some help choosing my essentials.`,
     );
   } else {
-    lines.push("Hi Paalvi 👋 I'd like to enquire about:");
+    lines.push(`${hi} I'd like to enquire about:`);
     lines.push(`🪥 ${product.title}`);
     const meta = [`SKU: ${product.sku}`, ...variants.filter(Boolean).map((v) => `${v.type_label || v.type}: ${v.value}`)];
     lines.push(meta.join(' · '));

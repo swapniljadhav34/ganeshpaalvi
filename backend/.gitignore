@@ -7,3 +7,4 @@ staticfiles/
 .env
 .cache/
 private_media/
+backups/
