@@ -23,7 +23,9 @@ Everything on the website comes from the Designer. You never need to edit code.
 1. Open the Paalvi folder.
 2. **Double-click `START_PAALVI.bat`.**
 3. **First time only:** setup takes a few minutes. You'll be asked to create the **owner login** (username, email, password). Keep it safe.
-4. Your browser opens the website. **Keep the black window open** while you work. Closing it stops the app.
+4. Your browser opens the website. **Keep the black window open** while you work.
+
+**To stop:** double-click **`STOP_PAALVI.bat`** (or close the black window).
 
 Next time, just double-click `START_PAALVI.bat` again. All your products and settings are saved.
 
@@ -98,6 +100,13 @@ Use **either** option:
 
 It takes about a minute. Keep `START_PAALVI.bat` running if you use the Dashboard button.
 
+### Check it on your computer before uploading
+Double-clicking `index.html` won't work: a browser can't load the shop's data from a file. Instead, open a terminal in the Paalvi folder and run:
+```
+npx serve static_site -l 5000
+```
+Then open **http://localhost:5000** and check the photos, search and product pages (no prices should appear). Double-click `STOP_PAALVI.bat` when you're done.
+
 ### Upload to Hostinger
 1. Log in to **Hostinger → Websites → Manage → File Manager**.
 2. Open the **`public_html`** folder. Delete the old files there (keep a backup if you're unsure).
@@ -138,9 +147,9 @@ Your shop's data lives in the Paalvi folder on your computer:
 | Problem | What to do |
 |---|---|
 | `START_PAALVI.bat` says setup failed | Install Python 3.12+ (tick *Add to PATH*) and Node.js 20+, restart the computer, try again |
-| "That port is already in use" | The app is already running in another window. Use that window, or close it and start again |
+| "That port is already in use" | The app is already running. Double-click `STOP_PAALVI.bat`, then start again |
 | Website shows "We couldn't connect" | The black window was closed. Double-click `START_PAALVI.bat` |
-| Photos don't show on the website | Close the black window and start `START_PAALVI.bat` again |
+| Photos don't show on the website | Double-click `STOP_PAALVI.bat`, then `START_PAALVI.bat` again |
 | Forgot the owner password | In the Paalvi folder, open a terminal and run `backend\.venv\Scripts\python backend\manage.py changepassword <username>` |
 | Static build fails | Make sure Node.js is installed. Read the message shown; it explains what went wrong |
 | Online product links show "Not found" | `.htaccess` is missing in `public_html`. Re-extract the ZIP there |
