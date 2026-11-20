@@ -7,6 +7,7 @@ import { useFx, useShapeStyle } from '../../../fx/FxContext';
 import HoverFx from '../../../fx/HoverFx';
 import ShapedMedia from '../../../fx/ShapedMedia';
 import { springs } from '../../../theme/motion';
+import { STATIC_SITE } from '../../../staticSite';
 import { formatINR } from '../../../utils/format';
 import Icon from '../../ui/Icon';
 import SectionShell, { SectionHeader } from '../SectionShell';
@@ -125,7 +126,7 @@ export function RoutineBuilder({ section }) {
                       {p.images[0]?.thumb && <img src={p.images[0].thumb} alt="" loading="lazy" />}
                       <span>
                         <span className={styles.stepPName}>{p.title}</span>
-                        <span className={styles.stepPPrice}>{formatINR(p.retail_price)} <ArrowRight size={12} strokeWidth={1.5} /></span>
+                        <span className={styles.stepPPrice}>{STATIC_SITE ? 'View' : formatINR(p.retail_price)} <ArrowRight size={12} strokeWidth={1.5} /></span>
                       </span>
                     </button>
                   )}

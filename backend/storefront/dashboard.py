@@ -1,5 +1,6 @@
 """Numbers for the admin dashboard home page (wired up via UNFOLD['DASHBOARD_CALLBACK'])."""
 
+import os
 from datetime import timedelta
 
 from django.conf import settings
@@ -42,6 +43,7 @@ def dashboard_callback(request, context):
     lead_url = reverse("admin:leads_leadinquiry_changelist")
     context["dash"] = {
         "site_url": settings.SITE_URL,
+        "static_site_url": os.getenv("STATIC_SITE_URL", ""),
         "kpis": [
             {"label": "Products live", "value": f"{active:,}", "hint": f"of {total:,} total", "link": f"{product_url}?is_active__exact=1"},
             {"label": "Low / out of stock", "value": low_qs.count(), "hint": "needs attention", "link": f"{product_url}?stock_status__exact=low"},

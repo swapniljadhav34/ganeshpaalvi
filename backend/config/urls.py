@@ -17,12 +17,14 @@ from django.urls import path, re_path
 
 from api.api import api
 from api.seo import robots_txt, sitemap_xml, spa_asset, spa_view, studio_view, track_view
+from storefront.static_export import download_view as download_static_site
 
 admin.site.site_header = "Designer"  # the sidebar title follows the brand name (settings.UNFOLD)
 admin.site.site_title = "Designer"
 admin.site.index_title = "Dashboard"
 
 urlpatterns = [
+    path(f"{settings.ADMIN_URL}static-website/", admin.site.admin_view(download_static_site), name="static-website"),
     path(settings.ADMIN_URL, admin.site.urls),
     path("api/", api.urls),
     path("sitemap.xml", sitemap_xml, name="sitemap"),

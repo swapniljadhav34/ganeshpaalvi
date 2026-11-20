@@ -10,6 +10,7 @@ import Decor from '../../fx/Decor';
 import Divider from '../../fx/Divider';
 import PointerArea, { usePointer } from '../../fx/PointerArea';
 import { useSmoothScroll } from '../../hooks/useSmoothScroll';
+import { STATIC_SITE } from '../../staticSite';
 import { useLinkProps } from '../../utils/useLinkAction';
 import { FacebookIcon, InstagramIcon, WhatsAppIcon, XIcon } from '../ui/BrandIcons';
 import Icon from '../ui/Icon';
@@ -162,7 +163,7 @@ export default function Footer() {
           <p>© {year} {brand.name}. {design.footer_legal_text}</p>
           <p className={styles.legalLinks}>
             <Link to="/privacy">{t('footer.privacy')}</Link>
-            <Link to="/track">{t('footer.track')}</Link>
+            {!STATIC_SITE && <Link to="/track">{t('footer.track')}</Link>}
             <button type="button" aria-pressed={motionPaused} onClick={() => setMotionPaused(!motionPaused)}>
               {motionPaused ? t('footer.play') : t('footer.pause')}
             </button>

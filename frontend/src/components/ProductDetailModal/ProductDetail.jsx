@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSite } from '../../context/SiteContext';
+import { STATIC_SITE } from '../../staticSite';
 import { formatINR, formatQty, STOCK_LABELS, SUITABLE_LABELS } from '../../utils/format';
 import { buildWhatsAppMessage } from '../../utils/whatsapp';
 import { WhatsAppIcon } from '../ui/BrandIcons';
@@ -44,7 +45,7 @@ function MiniRow({ title, items, onOpen, label }) {
             <span className={styles.miniImg}>{p.images[0]?.thumb && <img src={p.images[0].thumb} alt="" loading="lazy" />}</span>
             {step && <span className={styles.miniStep}>{label?.(step) || step}</span>}
             <span className={styles.miniTitle}>{p.title}</span>
-            <span className={styles.miniPrice}>{formatINR(p.retail_price)}</span>
+            {!STATIC_SITE && <span className={styles.miniPrice}>{formatINR(p.retail_price)}</span>}
           </button>
         ))}
       </div>
@@ -84,7 +85,7 @@ export default function ProductDetail({ product: p, layout = 'modal', headingId 
 
   const openProduct = (prod) => navigate(`/p/${prod.slug}`, { state: { background: location.state?.background || location, preview: prod }, replace: layout === 'modal' });
 
-  const contact = {
+  const contact = STATIC_SITE ? { product: p, variants: selected } : {
     product: p, variants: selected, pack, quantity: qty, unitPrice: q.unitPrice, total: q.total,
     buyerType: tier === 'wholesale' ? 'retailer' : 'shopper',
   };
@@ -101,17 +102,18 @@ export default function ProductDetail({ product: p, layout = 'modal', headingId 
     gtin13: p.ean || undefined,
     image: (p.images || []).map((i) => i.full || i.medium).filter(Boolean),
     brand: brand?.name ? { '@type': 'Brand', name: brand.name } : undefined,
-    offers: {
+    offers: STATIC_SITE ? undefined : {
       '@type': 'Offer', priceCurrency: 'INR', price: p.retail_price, url: p.url,
       availability: p.stock_status === 'out_of_stock' ? 'https://schema.org/OutOfStock' : 'https://schema.org/InStock',
     },
   };
+  const pageTitle = STATIC_SITE ? p.seo_title || p.title : `${p.seo_title || p.title} — ${formatINR(p.retail_price)}`;
 
   return (
     <div className={`${styles.detail} ${layout === 'page' ? styles.detailPage : ''}`}>
       {!partial && (
         <Helmet>
-          <title>{`${p.seo_title || p.title} — ${formatINR(p.retail_price)}${brand?.name ? ` | ${brand.name}` : ''}`}</title>
+          <title>{`${pageTitle}${brand?.name ? ` | ${brand.name}` : ''}`}</title>
           <meta name="description" content={p.seo_description || p.subtitle} />
           <meta property="og:title" content={p.seo_title || p.title} />
           <meta property="og:description" content={p.seo_description || p.subtitle} />
@@ -138,7 +140,7 @@ export default function ProductDetail({ product: p, layout = 'modal', headingId 
           )}
 
           {/* Retail vs Wholesale, side by side */}
-          <div className={styles.tiers}>
+          {!STATIC_SITE && <div className={styles.tiers}>
             <button type="button" className={`${styles.tierCard} ${tier === 'retail' ? styles.tierOn : ''}`} onClick={() => setTier('retail')} aria-pressed={tier === 'retail'}>
               <span className="t-caption">Retail</span>
               <span className={styles.tierPrice}>{formatINR(unitRetail)}</span>
@@ -152,8 +154,8 @@ export default function ProductDetail({ product: p, layout = 'modal', headingId 
                 <span className={styles.tierSub}>Save {formatINR(unitRetail - p.wholesale_price)} ({savePct}%) · MOQ {p.moq}</span>
               </button>
             )}
-          </div>
-          <p className={styles.taxNote}>MRP incl. of all taxes · {STOCK_LABELS[p.stock_status]}{p.net_quantity ? ` · ${formatQty(p.net_quantity, p.unit)}` : ''}</p>
+          </div>}
+          <p className={styles.taxNote}>{STATIC_SITE ? '' : 'MRP incl. of all taxes · '}{STOCK_LABELS[p.stock_status]}{p.net_quantity ? ` · ${formatQty(p.net_quantity, p.unit)}` : ''}</p>
 
           {/* Variant selectors */}
           {Object.entries(groups).map(([type, g]) => (
@@ -175,7 +177,7 @@ export default function ProductDetail({ product: p, layout = 'modal', headingId 
             </div>
           ))}
 
-          {!partial && (
+          {!partial && !STATIC_SITE && (
             <MoqCalculator product={p} packs={p.packages?.filter((x) => x.id) || []} pack={pack} setPack={setPack} qty={qty}
               setQty={setQty} tier={tier} unitRetail={unitRetail} />
           )}
@@ -224,7 +226,7 @@ export default function ProductDetail({ product: p, layout = 'modal', headingId 
               <Accordion title="Product details">
                 <dl className={styles.facts}>
                   {p.net_quantity && (<><dt>Net quantity</dt><dd>{formatQty(p.net_quantity, p.unit)}</dd></>)}
-                  <dt>MRP</dt><dd>{formatINR(p.mrp)} (incl. of all taxes)</dd>
+                  {!STATIC_SITE && (<><dt>MRP</dt><dd>{formatINR(p.mrp)} (incl. of all taxes)</dd></>)}
                   <dt>SKU</dt><dd>{p.sku}</dd>
                   {p.ean && (<><dt>EAN</dt><dd>{p.ean}</dd></>)}
                   <dt>Country of origin</dt><dd>{p.country_of_origin}</dd>
@@ -245,8 +247,14 @@ export default function ProductDetail({ product: p, layout = 'modal', headingId 
       {/* Sticky CTA bar */}
       <div className={`${styles.ctaBar} pv-glass`}>
         <div className={styles.ctaPrice}>
-          <span className={styles.ctaTotal}>{formatINR(q.total)}</span>
-          <span className={styles.ctaSub}>{q.units} pc{q.units === 1 ? '' : 's'} · {q.useWholesale ? 'wholesale' : 'retail'}</span>
+          {STATIC_SITE ? (
+            <span className={styles.ctaSub}>Ask us for price &amp; availability</span>
+          ) : (
+            <>
+              <span className={styles.ctaTotal}>{formatINR(q.total)}</span>
+              <span className={styles.ctaSub}>{q.units} pc{q.units === 1 ? '' : 's'} · {q.useWholesale ? 'wholesale' : 'retail'}</span>
+            </>
+          )}
         </div>
         <div className={styles.ctaBtns}>
           {emailHref && (

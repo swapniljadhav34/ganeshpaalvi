@@ -7,6 +7,7 @@ import Modal from 'react-bootstrap/Modal';
 import { sendInquiry } from '../../api/client';
 import { useSite } from '../../context/SiteContext';
 import { useSmoothScroll } from '../../hooks/useSmoothScroll';
+import { STATIC_SITE } from '../../staticSite';
 import { formatNumber } from '../../utils/format';
 import { WhatsAppIcon } from '../ui/BrandIcons';
 import styles from './EnquiryForm.module.css';
@@ -52,6 +53,15 @@ export default function EnquiryForm() {
       setStatus({ state: 'error', error: problem });
       return;
     }
+    if (STATIC_SITE) {
+      const note = [
+        form.name && `Name: ${form.name}`, form.phone && `Phone: ${form.phone}`, form.email && `Email: ${form.email}`,
+        isBusiness && form.business_name && `Business: ${form.business_name}`, form.message,
+      ].filter(Boolean).join('\n');
+      whatsapp({ product, buyerType, quantity: form.quantity ? Number(form.quantity) : undefined, city: form.city, note });
+      setStatus({ state: 'done', error: '' });
+      return;
+    }
     setStatus({ state: 'sending', error: '' });
     try {
       await sendInquiry({
@@ -84,10 +94,11 @@ export default function EnquiryForm() {
             <motion.div key="done" className={styles.done} initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}>
               <CheckCircle2 size={48} strokeWidth={1.25} className={styles.doneIcon} />
               <h2 className="t-h2">Thank you{form.name ? `, ${form.name.split(' ')[0]}` : ''}.</h2>
-              <p className="t-muted">We've received your enquiry and will reply within one working day.</p>
-              <button type="button" className="pv-btn pv-btn--whatsapp" onClick={() => whatsapp({ product, buyerType, quantity: form.quantity ? Number(form.quantity) : undefined, city: form.city })}>
+              <p className="t-muted">{STATIC_SITE ? 'Your enquiry is ready in WhatsApp — just press send.'
+                : "We've received your enquiry and will reply within one working day."}</p>
+              {!STATIC_SITE && <button type="button" className="pv-btn pv-btn--whatsapp" onClick={() => whatsapp({ product, buyerType, quantity: form.quantity ? Number(form.quantity) : undefined, city: form.city })}>
                 <WhatsAppIcon size={18} /> Need it faster? WhatsApp us
-              </button>
+              </button>}
             </motion.div>
           ) : (
             <motion.form key="form" onSubmit={submit} className={styles.form} noValidate>
@@ -126,7 +137,7 @@ export default function EnquiryForm() {
               </label>
               {status.error && <p className={styles.error} role="alert">{status.error}</p>}
               <button type="submit" className="pv-btn pv-btn--block" disabled={status.state === 'sending'}>
-                {status.state === 'sending' ? 'Sending…' : 'Send enquiry'}
+                {status.state === 'sending' ? 'Sending…' : STATIC_SITE ? 'Send on WhatsApp' : 'Send enquiry'}
               </button>
             </motion.form>
           )}

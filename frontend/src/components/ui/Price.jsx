@@ -1,11 +1,13 @@
 // Price block: selling price, struck-through MRP when lower, cross-fades when Retail/Wholesale changes.
 import { AnimatePresence, motion } from 'framer-motion';
 import { useSite } from '../../context/SiteContext';
+import { STATIC_SITE } from '../../staticSite';
 import { formatINR, tierPrice } from '../../utils/format';
 import styles from './Price.module.css';
 
 export default function Price({ product, size = 'md', showNote = false, tierOverride, priceOverride }) {
   const { tier: siteTier } = useSite();
+  if (STATIC_SITE) return null;
   const tier = tierOverride || siteTier;
   const price = priceOverride ?? tierPrice(product, tier);
   const isWholesale = tier === 'wholesale' && product.wholesale_price != null;

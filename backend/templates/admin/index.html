@@ -90,6 +90,43 @@
       {% endif %}
       <p class="pv-muted pv-small" style="margin-top: 12px">Next festival: {{ dash.next_festival|default:"none scheduled" }}</p>
     </div>
+
+    {% if request.user.is_superuser %}
+    <div class="pv-card">
+      <h2>Static website <span class="pv-muted pv-small">· no prices</span></h2>
+      <p class="pv-muted pv-small">Builds the storefront with all photos as plain files for Hostinger shared hosting (or any host).
+        Prices, the AI guide and order tracking are left out; enquiries go to WhatsApp. Unzip and upload everything to <code>public_html</code>.</p>
+      <form id="pv-static" method="post" action="{% url 'static-website' %}" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
+        {% csrf_token %}
+        <input name="site_url" type="url" placeholder="Website address, e.g. https://paalvi.in" value="{{ dash.static_site_url }}"
+          style="flex:1 1 220px;min-width:0;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;background:transparent;color:inherit">
+        <button class="pv-btn pv-btn-primary" type="submit">📦 Build &amp; download</button>
+      </form>
+      <p id="pv-static-msg" class="pv-small" style="margin-top:8px" role="status"></p>
+    </div>
+    <script>
+      (function () {
+        var form = document.getElementById('pv-static'), msg = document.getElementById('pv-static-msg');
+        var btn = form.querySelector('button'), label = btn.innerHTML;
+        form.addEventListener('submit', function (e) {
+          e.preventDefault();
+          btn.disabled = true; btn.textContent = '⏳ Building… (about a minute)'; msg.textContent = '';
+          fetch(form.action, { method: 'POST', body: new FormData(form), credentials: 'same-origin' })
+            .then(function (r) {
+              if (r.ok) return r.blob().then(function (b) {
+                var a = document.createElement('a');
+                a.href = URL.createObjectURL(b); a.download = 'paalvi-static-website.zip'; a.click();
+                setTimeout(function () { URL.revokeObjectURL(a.href); }, 10000);
+                msg.textContent = '✓ Downloaded. Unzip it and upload everything inside to public_html.';
+              });
+              return r.json().catch(function () { return {}; }).then(function (d) { throw new Error(d.error || ('Build failed (' + r.status + ')')); });
+            })
+            .catch(function (err) { msg.textContent = '✗ ' + err.message; })
+            .finally(function () { btn.disabled = false; btn.innerHTML = label; });
+        });
+      })();
+    </script>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

@@ -1,6 +1,7 @@
 // WhatsApp-first conversion: builds pre-filled messages and logs each tap as a lead.
 import { formatINR, formatNumber } from './format';
 import { sendInquiry } from '../api/client';
+import { STATIC_SITE } from '../staticSite';
 
 const BUYER_LABELS = {
   shopper: 'Shopper',
@@ -62,7 +63,7 @@ export function buildWhatsAppMessage({
   }
   if (buyerType && buyerType !== 'shopper') lines.push(`I'm a: ${BUYER_LABELS[buyerType] || buyerType}${city ? ` · ${city}` : ''}`);
   if (note) lines.push(note);
-  if (product?.slug) lines.push(`🔗 ${siteUrl}/p/${product.slug}`);
+  if (product?.slug) lines.push(`🔗 ${siteUrl || window.location.origin}/p/${product.slug}`);
   return lines.join('\n');
 }
 
@@ -74,6 +75,6 @@ export function whatsappUrl(number, message) {
 /** Open WhatsApp and quietly log the tap as a lead in the admin (never blocks the user). */
 export function openWhatsApp(number, message, lead = {}) {
   const url = whatsappUrl(number, message);
-  sendInquiry({ source: 'whatsapp', message, page_url: window.location.href, ...lead }).catch(() => {});
+  if (!STATIC_SITE) sendInquiry({ source: 'whatsapp', message, page_url: window.location.href, ...lead }).catch(() => {});
   window.open(url, '_blank', 'noopener');
 }

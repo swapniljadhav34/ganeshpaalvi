@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useSite } from '../../../context/SiteContext';
 import { useFx, useShapeStyle } from '../../../fx/FxContext';
 import { useSmoothScroll } from '../../../hooks/useSmoothScroll';
+import { STATIC_SITE } from '../../../staticSite';
 import ProductCard from '../../ProductCatalog/ProductCard';
 import { WhatsAppIcon } from '../../ui/BrandIcons';
 import Icon from '../../ui/Icon';
@@ -127,9 +128,11 @@ export function ForBusiness({ section }) {
           <button type="button" className="pv-btn pv-btn--whatsapp" onClick={() => whatsapp({ buyerType: 'retailer', note: 'Please share wholesale pricing & MOQs.' })}>
             <WhatsAppIcon size={18} /> {section.cta_text || 'Bulk enquiry on WhatsApp'}
           </button>
-          <button type="button" className="pv-btn pv-btn--ghost" onClick={() => { setTier('wholesale'); document.querySelector('#catalog')?.scrollIntoView({ behavior: 'smooth' }); }}>
-            See wholesale prices
-          </button>
+          {!STATIC_SITE && (
+            <button type="button" className="pv-btn pv-btn--ghost" onClick={() => { setTier('wholesale'); document.querySelector('#catalog')?.scrollIntoView({ behavior: 'smooth' }); }}>
+              See wholesale prices
+            </button>
+          )}
         </Reveal>
       </div>
     </SectionShell>

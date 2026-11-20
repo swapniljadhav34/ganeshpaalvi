@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useSite } from '../context/SiteContext';
+import { STATIC_SITE } from '../staticSite';
 
 const BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
@@ -32,7 +33,7 @@ export function usePageTracking() {
   const location = useLocation();
   const { tier } = useSite();
   useEffect(() => {
-    if (navigator.doNotTrack === '1' || window.doNotTrack === '1') return;
+    if (STATIC_SITE || navigator.doNotTrack === '1' || window.doNotTrack === '1') return;
     const { pathname, search } = location;
     if (pathname.startsWith('/studio') || pathname.startsWith('/__preview')) return;
     const params = new URLSearchParams(search);

@@ -1,4 +1,6 @@
 // Tiny fetch wrapper for the Django API. All site content comes from here.
+import { STATIC_SITE } from '../staticSite';
+import { staticBootstrap, staticProduct, staticProducts } from './staticData';
 
 const BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
@@ -48,12 +50,14 @@ export function toQuery(params = {}) {
   return s ? `?${s}` : '';
 }
 
+const noServer = () => Promise.reject(new ApiError('This is not available on this website. Please contact us on WhatsApp.', 0));
+
 export const fetchPreview = (token) => request(`/preview?token=${encodeURIComponent(token)}`);
-export const fetchBootstrap =({ signal } = {}) => request('/bootstrap', { signal });
-export const fetchProducts = (params, { signal } = {}) => request(`/products${toQuery(params)}`, { signal });
-export const fetchProduct = (slug, { signal } = {}) => request(`/products/${encodeURIComponent(slug)}`, { signal });
-export const askGuide = (payload) => request('/ai-guide', { method: 'POST', body: payload });
-export const sendInquiry = (payload) => request('/inquiry', { method: 'POST', body: payload, keepalive: true });
+export const fetchBootstrap = STATIC_SITE ? staticBootstrap : ({ signal } = {}) => request('/bootstrap', { signal });
+export const fetchProducts = STATIC_SITE ? staticProducts : (params, { signal } = {}) => request(`/products${toQuery(params)}`, { signal });
+export const fetchProduct = STATIC_SITE ? staticProduct : (slug, { signal } = {}) => request(`/products/${encodeURIComponent(slug)}`, { signal });
+export const askGuide = (payload) => (STATIC_SITE ? noServer() : request('/ai-guide', { method: 'POST', body: payload }));
+export const sendInquiry = (payload) => (STATIC_SITE ? noServer() : request('/inquiry', { method: 'POST', body: payload, keepalive: true }));
 export const trackOrder = (number, phone) => request(`/orders/track${toQuery({ number, phone })}`);
 export const trackOrderByLink = (token, { signal } = {}) => request(`/orders/track/${encodeURIComponent(token)}`, { signal });
 export const receiptUrl = (token, size = 'a4') => `${BASE}/api/orders/track/${encodeURIComponent(token)}/receipt?size=${size}`;

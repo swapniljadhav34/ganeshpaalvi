@@ -1,15 +1,18 @@
 // Filters: category, badges (free-from…), suitable for, bristle/flavour, price and discount.
 // Shown inline on desktop and as a bottom sheet on mobile (see ProductCatalog).
 import { Check } from 'lucide-react';
+import { STATIC_SITE } from '../../staticSite';
 import styles from './ProductCatalog.module.css';
 
 const SORTS = [
   { value: '', label: 'Recommended' },
   { value: 'newest', label: 'Newest' },
   { value: 'bestseller', label: 'Bestsellers' },
-  { value: 'price_asc', label: 'Price: low to high' },
-  { value: 'price_desc', label: 'Price: high to low' },
-  { value: 'discount', label: 'Biggest discount' },
+  ...(STATIC_SITE ? [] : [
+    { value: 'price_asc', label: 'Price: low to high' },
+    { value: 'price_desc', label: 'Price: high to low' },
+    { value: 'discount', label: 'Biggest discount' },
+  ]),
 ];
 const PRICE_BANDS = [
   { label: 'Under ₹100', min: '', max: '100' },
@@ -87,6 +90,7 @@ export default function FilterPanel({ filters, setFilter, setMany, badges = [], 
         </Group>
       ))}
 
+      {!STATIC_SITE && <>
       <Group title="Price (retail)">
         {PRICE_BANDS.map((b) => {
           const on = (filters.min_price || '') === b.min && (filters.max_price || '') === b.max;
@@ -106,6 +110,7 @@ export default function FilterPanel({ filters, setFilter, setMany, badges = [], 
           </Option>
         ))}
       </Group>
+      </>}
 
       {activeCount > 0 && (
         <button type="button" className={`pv-btn pv-btn--ghost pv-btn--sm ${styles.reset}`} onClick={onReset}>

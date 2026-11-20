@@ -24,11 +24,12 @@ import NotFound from './pages/NotFound';
 import PrivacyPage from './pages/PrivacyPage';
 import TrackPage from './pages/TrackPage';
 import ProductPage from './pages/ProductPage';
+import { STATIC_SITE } from './staticSite';
 import { usePageTracking } from './utils/analytics';
 import { readStore, writeStore } from './utils/storage';
 
 const PreviewPage = lazy(() => import('./pages/PreviewPage'));
-const StudioApp = lazy(() => import('./studio/StudioApp'));
+const StudioApp = STATIC_SITE ? null : lazy(() => import('./studio/StudioApp'));
 
 const ease = [0.22, 1, 0.36, 1];
 
@@ -87,7 +88,7 @@ export default function App() {
 
   usePageTracking();
 
-  if (location.pathname === '/studio' || location.pathname.startsWith('/studio/')) {
+  if (StudioApp && (location.pathname === '/studio' || location.pathname.startsWith('/studio/'))) {
     return <Suspense fallback={<Splash kind="pulse" />}><StudioApp /></Suspense>;
   }
   if (isError && !data) return <Offline onRetry={refetch} />;
@@ -113,8 +114,8 @@ export default function App() {
             <Route path="/" element={<main><HomePage /></main>} />
             <Route path="/p/:slug" element={<ProductPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/track" element={<TrackPage />} />
-            <Route path="/track/:token" element={<TrackPage />} />
+            {!STATIC_SITE && <Route path="/track" element={<TrackPage />} />}
+            {!STATIC_SITE && <Route path="/track/:token" element={<TrackPage />} />}
             <Route path="*" element={<NotFound />} />
           </Routes>
           <AnimatePresence>

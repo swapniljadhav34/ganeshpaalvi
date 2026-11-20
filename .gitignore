@@ -1,5 +1,7 @@
 node_modules/
 frontend/dist/
+static_site/
+static_site.zip
 frontend/.env
 backend/.venv/
 backend/__pycache__/
